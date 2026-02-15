@@ -21,6 +21,15 @@ import {
   VAULT_PATHS,
   MAX_SYNC_SIZE_BYTES,
   GOOGLE_DOCS_EXPORT,
+  resolveProjectPathCached,
+  buildProjectFilePath,
+  buildInboxFilePath,
+  extractContactName,
+  getEmailDirection,
+  isNewsletter,
+  getAccounts,
+  detectProject,
+  loadConfig,
 } from '@lifeos/shared';
 
 const app = express();
@@ -184,7 +193,10 @@ async function syncFiles(): Promise<SyncResults> {
         }
 
         // Determine project folder from Drive parents
-        const projectFolder = await resolveProjectFolder(clients.drive, file.parents?.[0]);
+        const driveFolderName = await resolveProjectFolder(clients.drive, file.parents?.[0]);
+
+        // Resolve the Drive folder name to a vault project path
+        const projectPath = await resolveProjectPathCached(driveFolderName);
 
         try {
           // Export Google Docs to Markdown, Sheets to CSV, etc.
@@ -195,7 +207,10 @@ async function syncFiles(): Promise<SyncResults> {
               mimeType: exportConfig.mimeType,
             }, { responseType: 'text' });
 
-            const vaultPath = `Files/${projectFolder}/${file.name}${exportConfig.extension}`;
+            const filename = `${file.name}${exportConfig.extension}`;
+            const vaultPath = projectPath
+              ? buildProjectFilePath(projectPath, filename)
+              : `${VAULT_PATHS.files}/Inbox/${filename}`;
             await writeFile(vaultPath, exported.data as string, `Sync: ${file.name}`);
             accountResults.files++;
           }
@@ -206,7 +221,9 @@ async function syncFiles(): Promise<SyncResults> {
               alt: 'media',
             }, { responseType: 'text' });
 
-            const vaultPath = `Files/${projectFolder}/${file.name}`;
+            const vaultPath = projectPath
+              ? buildProjectFilePath(projectPath, file.name!)
+              : `${VAULT_PATHS.files}/Inbox/${file.name}`;
             await writeFile(vaultPath, content.data as string, `Sync: ${file.name}`);
             accountResults.files++;
           }
@@ -223,6 +240,10 @@ async function syncFiles(): Promise<SyncResults> {
 
     // ── Sync email attachments from today ────────────────
     try {
+      // Gather account emails for direction detection
+      const accountEmails = getAccounts().map(a => a.email);
+      const config = loadConfig();
+
       const today = new Date().toISOString().split('T')[0].replace(/-/g, '/');
       const response = await clients.gmail.users.messages.list({
         userId: 'me',
@@ -239,6 +260,38 @@ async function syncFiles(): Promise<SyncResults> {
           format: 'full',
         });
 
+        // Extract headers for direction, contact, and newsletter detection
+        const rawHeaders = detail.data.payload?.headers ?? [];
+        const headerMap: Record<string, string> = {};
+        for (const h of rawHeaders) {
+          if (h.name && h.value) {
+            headerMap[h.name] = h.value;
+          }
+        }
+
+        // Skip newsletters and automated messages
+        if (isNewsletter(headerMap)) {
+          console.log(`[sync] Skipping newsletter/automated email: ${headerMap['Subject'] ?? msg.id}`);
+          continue;
+        }
+
+        // Determine direction and contact
+        const fromHeader = headerMap['From'] ?? '';
+        const toHeader = headerMap['To'] ?? '';
+        const subject = headerMap['Subject'] ?? '';
+        const direction = getEmailDirection(fromHeader, accountEmails);
+        const contactHeader = direction === 'sent' ? toHeader : fromHeader;
+        const contactName = extractContactName(contactHeader);
+
+        // Try to detect a project from email subject or sender
+        const senderEmail = fromHeader.match(/<?([^@<>\s]+@[^@<>\s]+)>?/)?.[1] ?? '';
+        const recipientEmail = toHeader.match(/<?([^@<>\s]+@[^@<>\s]+)>?/)?.[1] ?? '';
+        const relevantEmails = [senderEmail, recipientEmail].filter(Boolean);
+        const detectedProject = detectProject(config, relevantEmails, subject);
+        const projectPath = detectedProject
+          ? await resolveProjectPathCached(detectedProject)
+          : null;
+
         const parts = detail.data.payload?.parts ?? [];
         for (const part of parts) {
           if (!part.filename || !part.body?.attachmentId) continue;
@@ -253,7 +306,12 @@ async function syncFiles(): Promise<SyncResults> {
 
             if (attachment.data.data) {
               const content = Buffer.from(attachment.data.data, 'base64').toString('utf-8');
-              const vaultPath = `Files/Inbox/${part.filename}`;
+
+              // Use project path if detected, otherwise inbox with contact/direction
+              const vaultPath = projectPath
+                ? buildProjectFilePath(projectPath, part.filename)
+                : buildInboxFilePath(contactName, direction, part.filename);
+
               await writeFile(vaultPath, content, `Attachment: ${part.filename}`);
               accountResults.files++;
             }

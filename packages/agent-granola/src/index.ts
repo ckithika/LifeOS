@@ -27,6 +27,8 @@ import {
   detectProject,
   resolveAccount,
   isAutoExecute,
+  resolveProjectPathCached,
+  buildProjectMeetingNotesPath,
   VAULT_PATHS,
 } from '@lifeos/shared';
 import type { MeetingData, SuggestedAction } from '@lifeos/shared';
@@ -182,14 +184,30 @@ ${meeting.summary}
   // ── Step 3: Update project note ──────────────────────────
   if (project) {
     try {
-      const projectPath = `${VAULT_PATHS.projects}/${project}.md`;
+      // Resolve folder-per-project path; fall back to flat file for backwards compat
+      const folderPath = await resolveProjectPathCached(project);
+      const projectPath = folderPath
+        ? `${folderPath}/README.md`
+        : `${VAULT_PATHS.projects}/${project}.md`;
+
       const existing = await readFile(projectPath);
 
+      // Use absolute vault paths (wikilink-friendly) instead of relative links
+      const transcriptLink = `Files/Meetings/${dateSlug}-${titleSlug}-transcript.md`;
+      const summaryLink = `Files/Meetings/${dateSlug}-${titleSlug}-summary.md`;
+      const meetingRef = `\n- **${meeting.date.split('T')[0]}** — ${meeting.title} ([[${transcriptLink}|transcript]] | [[${summaryLink}|summary]])`;
+
       if (existing) {
-        const meetingRef = `\n- **${meeting.date.split('T')[0]}** — ${meeting.title} ([transcript](../Files/Meetings/${dateSlug}-${titleSlug}-transcript.md) | [summary](../Files/Meetings/${dateSlug}-${titleSlug}-summary.md))`;
         await appendToFile(projectPath, meetingRef, `Meeting: ${meeting.title}`);
         results.projectUpdated = project;
         console.log(`[granola] Project note updated: ${projectPath}`);
+      }
+
+      // Also append to the project's meeting-notes.md if using folder structure
+      if (folderPath) {
+        const meetingNotesPath = buildProjectMeetingNotesPath(folderPath);
+        await appendToFile(meetingNotesPath, meetingRef, `Meeting: ${meeting.title}`);
+        console.log(`[granola] Meeting notes updated: ${meetingNotesPath}`);
       }
     } catch (error) {
       console.error('[granola] Failed to update project note:', error);

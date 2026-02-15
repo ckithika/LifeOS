@@ -59,6 +59,20 @@ export {
   readDashboard,
 } from './vault.js';
 
+// Project Paths
+export {
+  getVaultConfig,
+  resolveProjectPath,
+  resolveProjectPathCached,
+  clearProjectPathCache,
+  buildProjectFilePath,
+  buildInboxFilePath,
+  buildProjectMeetingNotesPath,
+  extractContactName,
+  getEmailDirection,
+  isNewsletter,
+} from './project-paths.js';
+
 // Contacts
 export {
   findContact,

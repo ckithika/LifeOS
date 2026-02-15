@@ -9,7 +9,8 @@
  */
 
 import { Octokit } from '@octokit/rest';
-import { VaultFile, VaultProject, DailyNote } from './types.js';
+import { VaultFile, VaultProject, DailyNote, VAULT_PATHS } from './types.js';
+import { getVaultConfig, clearProjectPathCache } from './project-paths.js';
 
 let _octokit: Octokit | null = null;
 
@@ -211,33 +212,93 @@ export async function deleteFile(path: string, message?: string): Promise<void> 
 // ─── Vault-Specific Helpers ─────────────────────────────────
 
 /**
- * List all projects in the vault by reading the Projects/ directory.
- * Parses frontmatter to extract status and category.
+ * List all projects in the vault by scanning for folders with README.md.
+ * Supports both categorized (Projects/Work/slug/) and flat (Projects/slug/) layouts.
+ * Parses frontmatter from README.md to extract status and category.
  */
 export async function listProjects(): Promise<VaultProject[]> {
-  const files = await listDirectory('Projects');
+  const config = getVaultConfig();
   const projects: VaultProject[] = [];
 
-  for (const file of files) {
-    if (file.type !== 'file' || !file.name.endsWith('.md')) continue;
+  // Scan each category directory
+  for (const category of config.projectCategories) {
+    const categoryPath = `${VAULT_PATHS.projects}/${category}`;
+    try {
+      const entries = await listDirectory(categoryPath);
+      for (const entry of entries) {
+        if (entry.type !== 'dir') continue;
+        const project = await readProjectFromFolder(entry.path, entry.name, category);
+        if (project) projects.push(project);
+      }
+    } catch {
+      // Category directory may not exist yet
+    }
+  }
 
-    const content = await readFile(file.path);
-    if (!content) continue;
+  // Also scan Projects/ root for uncategorized project folders
+  try {
+    const rootEntries = await listDirectory(VAULT_PATHS.projects);
+    for (const entry of rootEntries) {
+      if (entry.type !== 'dir') continue;
+      // Skip category directories
+      if (config.projectCategories.includes(entry.name)) continue;
+      const project = await readProjectFromFolder(entry.path, entry.name);
+      if (project) projects.push(project);
+    }
+  } catch {
+    // Projects directory may not exist
+  }
 
-    // Parse frontmatter
-    const frontmatter = parseFrontmatter(content.content);
-    const slug = file.name.replace('.md', '');
+  // Backwards compat: also check for flat .md files in Projects/ root
+  try {
+    const rootEntries = await listDirectory(VAULT_PATHS.projects);
+    for (const entry of rootEntries) {
+      if (entry.type !== 'file' || !entry.name.endsWith('.md')) continue;
+      const slug = entry.name.replace('.md', '');
+      // Skip if we already found this as a folder project
+      if (projects.some(p => p.slug === slug)) continue;
 
-    projects.push({
-      slug,
-      title: frontmatter.title || slug.replace(/-/g, ' '),
-      status: frontmatter.status || 'unknown',
-      category: frontmatter.category,
-      path: file.path,
-    });
+      const content = await readFile(entry.path);
+      if (!content) continue;
+
+      const frontmatter = parseFrontmatter(content.content);
+      projects.push({
+        slug,
+        title: frontmatter.title || slug.replace(/-/g, ' '),
+        status: frontmatter.status || 'unknown',
+        category: frontmatter.category,
+        path: entry.path,
+        folderPath: entry.path.replace('.md', ''),
+      });
+    }
+  } catch {
+    // Already handled above
   }
 
   return projects;
+}
+
+/**
+ * Read project metadata from a folder's README.md.
+ */
+async function readProjectFromFolder(
+  folderPath: string,
+  slug: string,
+  category?: string
+): Promise<VaultProject | null> {
+  const readmePath = `${folderPath}/README.md`;
+  const content = await readFile(readmePath);
+  if (!content) return null;
+
+  const frontmatter = parseFrontmatter(content.content);
+  return {
+    slug,
+    title: frontmatter.title || slug.replace(/-/g, ' '),
+    status: frontmatter.status || 'unknown',
+    category: category || frontmatter.category,
+    path: readmePath,
+    folderPath,
+  };
 }
 
 /**
@@ -279,25 +340,37 @@ date: ${today}
 }
 
 /**
- * Create a new project from template.
+ * Create a new project as a folder with README.md, meeting-notes.md, and configured subfolders.
+ *
+ * @param slug - URL-safe project identifier
+ * @param title - Human-readable project title
+ * @param category - Category folder (e.g., 'Work', 'Personal'). Defaults to first configured category.
  */
 export async function createProject(
   slug: string,
   title: string,
   category?: string
 ): Promise<VaultProject> {
-  const path = `Projects/${slug}.md`;
+  const config = getVaultConfig();
+  const cat = category || config.projectCategories[0] || 'Consulting';
+  const folderPath = `${VAULT_PATHS.projects}/${cat}/${slug}`;
+  const readmePath = `${folderPath}/README.md`;
 
   // Check if already exists
-  const existing = await readFile(path);
+  const existing = await readFile(readmePath);
   if (existing) {
-    throw new Error(`Project "${slug}" already exists at ${path}`);
+    throw new Error(`Project "${slug}" already exists at ${folderPath}`);
   }
 
-  const content = `---
+  const today = new Date().toISOString().split('T')[0];
+
+  // Create README.md with frontmatter
+  const readmeContent = `---
+title: "${title}"
 status: active
-created: ${new Date().toISOString().split('T')[0]}
-category: ${category || 'project'}
+created: ${today}
+category: ${cat}
+tags: []
 ---
 
 # ${title}
@@ -313,19 +386,42 @@ category: ${category || 'project'}
 ## Links
 
 `;
+  await writeFile(readmePath, readmeContent, `lifeos: create project ${slug}`);
 
-  await writeFile(path, content, `lifeos: create project ${slug}`);
+  // Create meeting-notes.md
+  const meetingNotesContent = `---
+title: "${title} — Meeting Notes"
+project: ${slug}
+---
 
-  // Create Files directory for the project
-  const filesReadme = `# ${title} — Files\n\nSynced files for this project.\n`;
-  await writeFile(`Files/${title}/README.md`, filesReadme, `lifeos: create files dir for ${slug}`);
+# ${title} — Meeting Notes
+
+`;
+  await writeFile(
+    `${folderPath}/meeting-notes.md`,
+    meetingNotesContent,
+    `lifeos: create meeting notes for ${slug}`
+  );
+
+  // Create configured subfolders with .gitkeep
+  for (const subfolder of config.projectSubfolders) {
+    await writeFile(
+      `${folderPath}/${subfolder}/.gitkeep`,
+      '',
+      `lifeos: create ${subfolder}/ for ${slug}`
+    );
+  }
+
+  // Clear the path cache so the new project is discoverable
+  clearProjectPathCache();
 
   return {
     slug,
     title,
     status: 'active',
-    category,
-    path,
+    category: cat,
+    path: readmePath,
+    folderPath,
   };
 }
 
