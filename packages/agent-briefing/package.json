@@ -1,0 +1,22 @@
+{
+  "name": "@lifeos/agent-briefing",
+  "version": "0.1.0",
+  "description": "Daily briefing agent: generates morning briefing with calendar, tasks, emails, and suggested actions",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "npx tsx --watch src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@lifeos/shared": "*",
+    "express": "^4.21.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0",
+    "@types/express": "^5.0.0"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@lifeos/agent-sync",
+  "version": "0.1.0",
+  "description": "Background sync agent: Gmail, Calendar, Tasks, and files across all Google accounts",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "npx tsx --watch src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@lifeos/shared": "*",
+    "express": "^4.21.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0",
+    "@types/express": "^5.0.0"
+  }
+}

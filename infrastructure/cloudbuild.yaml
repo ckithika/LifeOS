@@ -1,0 +1,371 @@
+# ============================================================================
+# Cloud Build Configuration for LifeOS
+# ============================================================================
+#
+# Builds, pushes, and deploys all 7 LifeOS services to Cloud Run:
+#
+#   MCP Servers (always-on, min 1 instance):
+#     - mcp-google        Google Calendar / Tasks / Drive MCP server
+#     - mcp-obsidian      Obsidian vault MCP server
+#
+#   Agents (scale-to-zero):
+#     - agent-briefing    Daily morning briefing generator
+#     - agent-sync        Background data synchronization
+#     - agent-drive-org   Google Drive organization
+#     - agent-granola     Granola meeting-notes processor
+#     - agent-research    Research & summarization agent
+#
+# Usage:
+#   gcloud builds submit \
+#     --config infrastructure/cloudbuild.yaml \
+#     --substitutions=_REGION=us-central1
+#
+# ============================================================================
+
+substitutions:
+  _REGION: "us-central1"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+# ============================================================================
+# Build Steps
+# ============================================================================
+steps:
+
+  # ==========================================================================
+  # Phase 1 -- Build & Push Docker Images
+  # ==========================================================================
+  # All builds use the repo root as context (Dockerfiles reference root-level
+  # package.json, tsconfig.json, and the shared package).
+  # ==========================================================================
+
+  # --------------------------------------------------------------------------
+  # MCP Servers
+  # --------------------------------------------------------------------------
+
+  - id: "build-mcp-google"
+    name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "gcr.io/${PROJECT_ID}/mcp-google:${SHORT_SHA}"
+      - "-t"
+      - "gcr.io/${PROJECT_ID}/mcp-google:latest"
+      - "-f"
+      - "packages/mcp-google/Dockerfile"
+      - "."
+    waitFor: ["-"]
+
+  - id: "build-mcp-obsidian"
+    name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "gcr.io/${PROJECT_ID}/mcp-obsidian:${SHORT_SHA}"
+      - "-t"
+      - "gcr.io/${PROJECT_ID}/mcp-obsidian:latest"
+      - "-f"
+      - "packages/mcp-obsidian/Dockerfile"
+      - "."
+    waitFor: ["-"]
+
+  # --------------------------------------------------------------------------
+  # Agents
+  # --------------------------------------------------------------------------
+
+  - id: "build-agent-briefing"
+    name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "gcr.io/${PROJECT_ID}/agent-briefing:${SHORT_SHA}"
+      - "-t"
+      - "gcr.io/${PROJECT_ID}/agent-briefing:latest"
+      - "-f"
+      - "packages/agent-briefing/Dockerfile"
+      - "."
+    waitFor: ["-"]
+
+  - id: "build-agent-sync"
+    name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "gcr.io/${PROJECT_ID}/agent-sync:${SHORT_SHA}"
+      - "-t"
+      - "gcr.io/${PROJECT_ID}/agent-sync:latest"
+      - "-f"
+      - "packages/agent-sync/Dockerfile"
+      - "."
+    waitFor: ["-"]
+
+  - id: "build-agent-drive-org"
+    name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "gcr.io/${PROJECT_ID}/agent-drive-org:${SHORT_SHA}"
+      - "-t"
+      - "gcr.io/${PROJECT_ID}/agent-drive-org:latest"
+      - "-f"
+      - "packages/agent-drive-org/Dockerfile"
+      - "."
+    waitFor: ["-"]
+
+  - id: "build-agent-granola"
+    name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "gcr.io/${PROJECT_ID}/agent-granola:${SHORT_SHA}"
+      - "-t"
+      - "gcr.io/${PROJECT_ID}/agent-granola:latest"
+      - "-f"
+      - "packages/agent-granola/Dockerfile"
+      - "."
+    waitFor: ["-"]
+
+  - id: "build-agent-research"
+    name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "gcr.io/${PROJECT_ID}/agent-research:${SHORT_SHA}"
+      - "-t"
+      - "gcr.io/${PROJECT_ID}/agent-research:latest"
+      - "-f"
+      - "packages/agent-research/Dockerfile"
+      - "."
+    waitFor: ["-"]
+
+  # ==========================================================================
+  # Phase 2 -- Push Images to Container Registry
+  # ==========================================================================
+  # Each push waits only on its own build step so pushes start as soon as
+  # the corresponding image is ready.
+  # ==========================================================================
+
+  # --- MCP Servers ---
+
+  - id: "push-mcp-google"
+    name: "gcr.io/cloud-builders/docker"
+    args: ["push", "--all-tags", "gcr.io/${PROJECT_ID}/mcp-google"]
+    waitFor: ["build-mcp-google"]
+
+  - id: "push-mcp-obsidian"
+    name: "gcr.io/cloud-builders/docker"
+    args: ["push", "--all-tags", "gcr.io/${PROJECT_ID}/mcp-obsidian"]
+    waitFor: ["build-mcp-obsidian"]
+
+  # --- Agents ---
+
+  - id: "push-agent-briefing"
+    name: "gcr.io/cloud-builders/docker"
+    args: ["push", "--all-tags", "gcr.io/${PROJECT_ID}/agent-briefing"]
+    waitFor: ["build-agent-briefing"]
+
+  - id: "push-agent-sync"
+    name: "gcr.io/cloud-builders/docker"
+    args: ["push", "--all-tags", "gcr.io/${PROJECT_ID}/agent-sync"]
+    waitFor: ["build-agent-sync"]
+
+  - id: "push-agent-drive-org"
+    name: "gcr.io/cloud-builders/docker"
+    args: ["push", "--all-tags", "gcr.io/${PROJECT_ID}/agent-drive-org"]
+    waitFor: ["build-agent-drive-org"]
+
+  - id: "push-agent-granola"
+    name: "gcr.io/cloud-builders/docker"
+    args: ["push", "--all-tags", "gcr.io/${PROJECT_ID}/agent-granola"]
+    waitFor: ["build-agent-granola"]
+
+  - id: "push-agent-research"
+    name: "gcr.io/cloud-builders/docker"
+    args: ["push", "--all-tags", "gcr.io/${PROJECT_ID}/agent-research"]
+    waitFor: ["build-agent-research"]
+
+  # ==========================================================================
+  # Phase 3 -- Deploy to Cloud Run
+  # ==========================================================================
+  #
+  # MCP Servers:  min-instances=1, max-instances=5,  memory=512Mi
+  #   Kept warm so agents can reach them without cold-start latency.
+  #
+  # Agents:       min-instances=0, max-instances=3,  memory=1Gi
+  #   Scale to zero when idle to minimize cost; they are invoked by
+  #   Cloud Scheduler or on-demand HTTP calls.
+  #
+  # All services pull secrets from Secret Manager via --set-secrets.
+  # ==========================================================================
+
+  # --------------------------------------------------------------------------
+  # MCP Servers (always-on)
+  # --------------------------------------------------------------------------
+
+  - id: "deploy-mcp-google"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "mcp-google"
+      - "--image=gcr.io/${PROJECT_ID}/mcp-google:${SHORT_SHA}"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--port=8080"
+      - "--min-instances=1"
+      - "--max-instances=5"
+      - "--memory=512Mi"
+      - "--cpu=1"
+      - "--timeout=300"
+      - "--no-allow-unauthenticated"
+      - "--set-secrets=GOOGLE_CLIENT_ID=google-client-id:latest,GOOGLE_CLIENT_SECRET=google-client-secret:latest,GOOGLE_REFRESH_TOKEN=google-refresh-token:latest"
+    waitFor: ["push-mcp-google"]
+
+  - id: "deploy-mcp-obsidian"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "mcp-obsidian"
+      - "--image=gcr.io/${PROJECT_ID}/mcp-obsidian:${SHORT_SHA}"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--port=8080"
+      - "--min-instances=1"
+      - "--max-instances=5"
+      - "--memory=512Mi"
+      - "--cpu=1"
+      - "--timeout=300"
+      - "--no-allow-unauthenticated"
+      - "--set-secrets=OBSIDIAN_VAULT_PATH=obsidian-vault-path:latest"
+    waitFor: ["push-mcp-obsidian"]
+
+  # --------------------------------------------------------------------------
+  # Agents (scale-to-zero)
+  # --------------------------------------------------------------------------
+
+  - id: "deploy-agent-briefing"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "agent-briefing"
+      - "--image=gcr.io/${PROJECT_ID}/agent-briefing:${SHORT_SHA}"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--port=8080"
+      - "--min-instances=0"
+      - "--max-instances=3"
+      - "--memory=1Gi"
+      - "--cpu=1"
+      - "--timeout=300"
+      - "--no-allow-unauthenticated"
+      - "--set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest,MCP_GOOGLE_URL=mcp-google-url:latest,MCP_OBSIDIAN_URL=mcp-obsidian-url:latest"
+    waitFor: ["push-agent-briefing"]
+
+  - id: "deploy-agent-sync"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "agent-sync"
+      - "--image=gcr.io/${PROJECT_ID}/agent-sync:${SHORT_SHA}"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--port=8080"
+      - "--min-instances=0"
+      - "--max-instances=3"
+      - "--memory=1Gi"
+      - "--cpu=1"
+      - "--timeout=600"
+      - "--no-allow-unauthenticated"
+      - "--set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest,MCP_GOOGLE_URL=mcp-google-url:latest,MCP_OBSIDIAN_URL=mcp-obsidian-url:latest"
+    waitFor: ["push-agent-sync"]
+
+  - id: "deploy-agent-drive-org"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "agent-drive-org"
+      - "--image=gcr.io/${PROJECT_ID}/agent-drive-org:${SHORT_SHA}"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--port=8080"
+      - "--min-instances=0"
+      - "--max-instances=3"
+      - "--memory=1Gi"
+      - "--cpu=1"
+      - "--timeout=900"
+      - "--no-allow-unauthenticated"
+      - "--set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest,MCP_GOOGLE_URL=mcp-google-url:latest"
+    waitFor: ["push-agent-drive-org"]
+
+  - id: "deploy-agent-granola"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "agent-granola"
+      - "--image=gcr.io/${PROJECT_ID}/agent-granola:${SHORT_SHA}"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--port=8080"
+      - "--min-instances=0"
+      - "--max-instances=3"
+      - "--memory=1Gi"
+      - "--cpu=1"
+      - "--timeout=300"
+      - "--no-allow-unauthenticated"
+      - "--set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest,GRANOLA_API_KEY=granola-api-key:latest,MCP_OBSIDIAN_URL=mcp-obsidian-url:latest"
+    waitFor: ["push-agent-granola"]
+
+  - id: "deploy-agent-research"
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "agent-research"
+      - "--image=gcr.io/${PROJECT_ID}/agent-research:${SHORT_SHA}"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--port=8080"
+      - "--min-instances=0"
+      - "--max-instances=3"
+      - "--memory=1Gi"
+      - "--cpu=1"
+      - "--timeout=600"
+      - "--no-allow-unauthenticated"
+      - "--set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest,MCP_GOOGLE_URL=mcp-google-url:latest,MCP_OBSIDIAN_URL=mcp-obsidian-url:latest"
+    waitFor: ["push-agent-research"]
+
+# ============================================================================
+# Images to be pushed (Cloud Build auto-pushes these after all steps succeed)
+# ============================================================================
+images:
+  - "gcr.io/${PROJECT_ID}/mcp-google:${SHORT_SHA}"
+  - "gcr.io/${PROJECT_ID}/mcp-google:latest"
+  - "gcr.io/${PROJECT_ID}/mcp-obsidian:${SHORT_SHA}"
+  - "gcr.io/${PROJECT_ID}/mcp-obsidian:latest"
+  - "gcr.io/${PROJECT_ID}/agent-briefing:${SHORT_SHA}"
+  - "gcr.io/${PROJECT_ID}/agent-briefing:latest"
+  - "gcr.io/${PROJECT_ID}/agent-sync:${SHORT_SHA}"
+  - "gcr.io/${PROJECT_ID}/agent-sync:latest"
+  - "gcr.io/${PROJECT_ID}/agent-drive-org:${SHORT_SHA}"
+  - "gcr.io/${PROJECT_ID}/agent-drive-org:latest"
+  - "gcr.io/${PROJECT_ID}/agent-granola:${SHORT_SHA}"
+  - "gcr.io/${PROJECT_ID}/agent-granola:latest"
+  - "gcr.io/${PROJECT_ID}/agent-research:${SHORT_SHA}"
+  - "gcr.io/${PROJECT_ID}/agent-research:latest"
+
+# Build timeout: 30 minutes (all 7 images build in parallel)
+timeout: "1800s"

@@ -1,0 +1,98 @@
+# ============================================================================
+# Cloud Scheduler Jobs for LifeOS
+# ============================================================================
+#
+# Deploys three scheduled jobs that trigger LifeOS agents on a cron cadence.
+#
+# Usage:
+#   Replace the ${...} placeholders with actual values before applying,
+#   or use `envsubst` at deploy time:
+#
+#     envsubst < scheduler.yaml | gcloud scheduler jobs create ...
+#
+# ============================================================================
+
+jobs:
+
+  # --------------------------------------------------------------------------
+  # Daily Briefing
+  # --------------------------------------------------------------------------
+  # Generates the morning briefing note in Obsidian with calendar events,
+  # task summaries, and relevant context for the day ahead.
+  #
+  # Schedule: Every day at 06:30 local time
+  # --------------------------------------------------------------------------
+  - name: daily-briefing
+    schedule: "30 6 * * *"
+    timeZone: "${TIMEZONE}"
+    httpTarget:
+      uri: "${AGENT_BRIEFING_URL}/briefing"
+      httpMethod: POST
+      headers:
+        Content-Type: "application/json"
+      body: ""
+      oidcToken:
+        serviceAccountEmail: "${SERVICE_ACCOUNT_EMAIL}"
+    retryConfig:
+      retryCount: 2
+      minBackoffDuration: "30s"
+      maxBackoffDuration: "120s"
+      maxDoublings: 2
+    attemptDeadline: "300s"
+    description: "Triggers the daily morning briefing agent"
+
+  # --------------------------------------------------------------------------
+  # Background Sync
+  # --------------------------------------------------------------------------
+  # Syncs data across Google services (Calendar, Tasks, Drive) and Obsidian.
+  # Runs three times a day to keep everything reasonably up-to-date without
+  # burning through API quotas.
+  #
+  # Schedule: Every day at 06:00, 12:00, and 18:00 local time
+  # --------------------------------------------------------------------------
+  - name: background-sync
+    schedule: "0 6,12,18 * * *"
+    timeZone: "${TIMEZONE}"
+    httpTarget:
+      uri: "${AGENT_SYNC_URL}/sync"
+      httpMethod: POST
+      headers:
+        Content-Type: "application/json"
+      body: ""
+      oidcToken:
+        serviceAccountEmail: "${SERVICE_ACCOUNT_EMAIL}"
+    retryConfig:
+      retryCount: 3
+      minBackoffDuration: "60s"
+      maxBackoffDuration: "300s"
+      maxDoublings: 3
+    attemptDeadline: "600s"
+    description: "Triggers background sync across Google services and Obsidian"
+
+  # --------------------------------------------------------------------------
+  # Drive Organization
+  # --------------------------------------------------------------------------
+  # Scans Google Drive for unorganized files and folders, then moves or tags
+  # them according to the PARA-based folder structure. Runs at 2 AM to avoid
+  # interfering with active work.
+  #
+  # Schedule: Every day at 02:00 local time
+  # --------------------------------------------------------------------------
+  - name: drive-org
+    schedule: "0 2 * * *"
+    timeZone: "${TIMEZONE}"
+    httpTarget:
+      uri: "${AGENT_DRIVE_ORG_URL}/organize"
+      httpMethod: POST
+      headers:
+        Content-Type: "application/json"
+      body: ""
+      oidcToken:
+        serviceAccountEmail: "${SERVICE_ACCOUNT_EMAIL}"
+    retryConfig:
+      retryCount: 1
+      minBackoffDuration: "60s"
+      maxBackoffDuration: "120s"
+      maxDoublings: 1
+    attemptDeadline: "900s"
+    description: "Triggers nightly Google Drive organization agent"

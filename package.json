@@ -1,0 +1,37 @@
+{
+  "name": "lifeos",
+  "version": "0.1.0",
+  "description": "An open-source personal operating system powered by Claude AI",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "NODE_OPTIONS='--max-old-space-size=8192' npm run build -w packages/shared && NODE_OPTIONS='--max-old-space-size=8192' npm run build --workspaces --if-present",
+    "build:shared": "npm run build -w packages/shared",
+    "dev:obsidian": "npx tsx packages/mcp-obsidian/src/index.ts",
+    "dev:google": "npx tsx packages/mcp-google/src/index.ts",
+    "clean": "rm -rf packages/*/dist packages/*/tsconfig.tsbuildinfo",
+    "auth": "npx tsx scripts/auth-google.ts",
+    "deploy": "bash scripts/deploy.sh",
+    "lint": "eslint packages/*/src/**/*.ts",
+    "typecheck": "tsc --noEmit --project tsconfig.json"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "author": "Charles Kithika",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ckithika/lifeos.git"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.4.0"
+  }
+}

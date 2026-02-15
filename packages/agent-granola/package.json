@@ -1,0 +1,23 @@
+{
+  "name": "@lifeos/agent-granola",
+  "version": "0.1.0",
+  "description": "Post-meeting automation agent: processes Granola webhooks, saves transcripts, extracts actions, drafts emails",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "npx tsx --watch src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@lifeos/shared": "*",
+    "@anthropic-ai/sdk": "^0.39.0",
+    "express": "^4.21.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0",
+    "@types/express": "^5.0.0"
+  }
+}
