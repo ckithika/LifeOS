@@ -7,6 +7,8 @@
  * Tools:
  * - read_note: Read any file from the vault
  * - write_note: Create or update vault files
+ * - delete_note: Delete a file from the vault
+ * - move_note: Move or rename a file in the vault
  * - search_vault: Full-text search across the vault
  * - list_projects: List all projects with status
  * - create_project: Create new project from template
@@ -24,6 +26,7 @@ import {
   readFile,
   writeFile,
   appendToFile,
+  deleteFile,
   searchVault,
   listDirectory,
   listProjects,
@@ -37,9 +40,10 @@ function registerTools(server: McpServer) {
 
 // ─── Tool: read_note ────────────────────────────────────────
 
+// @ts-expect-error TS2589: MCP SDK server.tool() deep type instantiation
 server.tool(
   'read_note',
-  'Read a file from the Obsidian vault. Use paths relative to vault root (e.g., "Projects/esp.md", "Daily/2026-02-15.md").',
+  'Read a file from the Obsidian vault. Use paths relative to vault root (e.g., "Projects/Work/esp/README.md", "Daily/2026-02-15.md").',
   {
     path: z.string().describe('File path relative to vault root'),
   },
@@ -134,7 +138,7 @@ server.tool(
 
 server.tool(
   'list_projects',
-  'List all projects in the vault with their status and category.',
+  'List all projects in the vault. Projects are folders with README.md under Projects/{category}/.',
   {},
   async () => {
     try {
@@ -147,7 +151,7 @@ server.tool(
       }
 
       const formatted = projects
-        .map(p => `- **${p.title}** [${p.status}] ${p.category ? `(${p.category})` : ''} — ${p.path}`)
+        .map(p => `- **${p.title}** [${p.status}] ${p.category ? `(${p.category})` : ''} — ${p.folderPath || p.path}`)
         .join('\n');
 
       return {
@@ -166,11 +170,11 @@ server.tool(
 
 server.tool(
   'create_project',
-  'Create a new project with vault note, Files/ directory, and dashboard entry. Returns the project path.',
+  'Create a new project folder with README.md, meeting-notes.md, configured subfolders, and dashboard entry. Returns the project path.',
   {
     slug: z.string().describe('URL-safe project slug (e.g., "new-product-launch")'),
     title: z.string().describe('Human-readable project title'),
-    category: z.string().optional().describe('Project category (e.g., "saas", "consulting", "personal")'),
+    category: z.string().optional().describe('Project category folder (e.g., "Work", "Personal"). Defaults to first configured category.'),
   },
   async ({ slug, title, category }) => {
     try {
@@ -180,7 +184,8 @@ server.tool(
       try {
         const dashboard = await readFile('Dashboard.md');
         if (dashboard) {
-          const entry = `| ${title} | active | ${category || '-'} | [→](Projects/${slug}.md) |\n`;
+          const cat = project.category || category || 'Consulting';
+          const entry = `| ${title} | active | ${cat} | [→](Projects/${cat}/${slug}/README.md) |\n`;
           const updatedContent = dashboard.content.includes('| Project |')
             ? dashboard.content.replace(
                 /(\| Project \|.*\n\|[-| ]+\n)/,
@@ -196,7 +201,7 @@ server.tool(
       return {
         content: [{
           type: 'text' as const,
-          text: `Created project "${title}":\n- Note: ${project.path}\n- Files: Files/${title}/\n- Added to Dashboard.md`,
+          text: `Created project "${title}":\n- Folder: ${project.folderPath}/\n- README: ${project.path}\n- Added to Dashboard.md`,
         }],
       };
     } catch (error) {
@@ -212,7 +217,7 @@ server.tool(
 
 server.tool(
   'list_files',
-  'Browse files in the vault. Lists contents of any directory. Defaults to Files/ for project files.',
+  'Browse files in the vault. Lists contents of any directory. Project files are inside project folders (Projects/{category}/{slug}/files/). System files are in Files/.',
   {
     path: z.string().optional().describe('Directory path to list (default: "Files")'),
   },
@@ -296,6 +301,65 @@ server.tool(
     } catch (error) {
       return {
         content: [{ type: 'text' as const, text: `Error with daily note: ${error instanceof Error ? error.message : 'unknown'}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ─── Tool: delete_note ──────────────────────────────────────
+
+server.tool(
+  'delete_note',
+  'Delete a file from the Obsidian vault. This is permanent (though recoverable via git history).',
+  {
+    path: z.string().describe('File path relative to vault root'),
+  },
+  async ({ path }) => {
+    try {
+      await deleteFile(path);
+      return {
+        content: [{ type: 'text' as const, text: `Deleted: ${path}` }],
+      };
+    } catch (error) {
+      return {
+        content: [{ type: 'text' as const, text: `Error deleting ${path}: ${error instanceof Error ? error.message : 'unknown'}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+// ─── Tool: move_note ────────────────────────────────────────
+
+server.tool(
+  'move_note',
+  'Move or rename a file in the Obsidian vault. Copies content to the new path and deletes the original.',
+  {
+    from: z.string().describe('Current file path relative to vault root'),
+    to: z.string().describe('New file path relative to vault root'),
+  },
+  async ({ from, to }) => {
+    try {
+      const file = await readFile(from);
+      if (!file) {
+        return {
+          content: [{ type: 'text' as const, text: `File not found: ${from}` }],
+          isError: true,
+        };
+      }
+
+      // Write to new location
+      await writeFile(to, file.content, `lifeos: move ${from} → ${to}`);
+      // Delete original
+      await deleteFile(from, `lifeos: move ${from} → ${to} (cleanup)`);
+
+      return {
+        content: [{ type: 'text' as const, text: `Moved: ${from} → ${to}` }],
+      };
+    } catch (error) {
+      return {
+        content: [{ type: 'text' as const, text: `Error moving ${from}: ${error instanceof Error ? error.message : 'unknown'}` }],
         isError: true,
       };
     }

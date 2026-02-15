@@ -114,6 +114,7 @@ export function registerCalendarTools(server: McpServer) {
 
   // ─── calendar_create ────────────────────────────────────────
 
+  // @ts-expect-error TS2589: MCP SDK server.tool() deep type instantiation
   server.tool(
     'calendar_create',
     'Create a calendar event with optional attendees. Routes to the correct account based on project.',

@@ -150,6 +150,7 @@ export function registerTasksTools(server: McpServer) {
 
   // ─── tasks_update ───────────────────────────────────────────
 
+  // @ts-expect-error TS2589: MCP SDK server.tool() deep type instantiation
   server.tool(
     'tasks_update',
     'Update or complete a task. Can change title, notes, due date, or mark as completed.',

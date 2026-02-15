@@ -157,6 +157,7 @@ export function registerDriveTools(server: McpServer) {
 
   // ─── drive_upload ───────────────────────────────────────────
 
+  // @ts-expect-error TS2589: MCP SDK server.tool() deep type instantiation
   server.tool(
     'drive_upload',
     'Upload a file to Google Drive.',
@@ -191,6 +192,41 @@ export function registerDriveTools(server: McpServer) {
         };
       } catch (error) {
         return { content: [{ type: 'text' as const, text: `drive_upload failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+      }
+    }
+  );
+
+  // ─── drive_create_folder ─────────────────────────────────────
+
+  server.tool(
+    'drive_create_folder',
+    'Create a new folder in Google Drive. Returns the folder ID for use with drive_upload and drive_organize.',
+    {
+      name: z.string().describe('Folder name'),
+      account: z.string().describe('Account alias'),
+      parentId: z.string().optional().describe('Parent folder ID (omit for root)'),
+    },
+    async ({ name, account, parentId }) => {
+      try {
+        const clients = getGoogleClients(account);
+
+        const response = await clients.drive.files.create({
+          requestBody: {
+            name,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents: parentId ? [parentId] : undefined,
+          },
+          fields: 'id,name,webViewLink',
+        });
+
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `Created folder "${name}" in ${account} Drive\n  ID: ${response.data.id}${response.data.webViewLink ? `\n  Link: ${response.data.webViewLink}` : ''}`,
+          }],
+        };
+      } catch (error) {
+        return { content: [{ type: 'text' as const, text: `drive_create_folder failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
     }
   );
@@ -231,6 +267,44 @@ export function registerDriveTools(server: McpServer) {
         };
       } catch (error) {
         return { content: [{ type: 'text' as const, text: `drive_organize failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+      }
+    }
+  );
+  // ─── drive_delete ───────────────────────────────────────────
+
+  server.tool(
+    'drive_delete',
+    'Move a file or folder to trash in Google Drive. Use with caution — this is reversible from the Drive trash within 30 days.',
+    {
+      fileId: z.string().describe('File or folder ID to trash'),
+      account: z.string().describe('Account alias'),
+    },
+    async ({ fileId, account }) => {
+      try {
+        const clients = getGoogleClients(account);
+
+        // Get name first for confirmation message
+        const meta = await clients.drive.files.get({
+          fileId,
+          fields: 'id,name,mimeType',
+        });
+
+        const name = meta.data.name || fileId;
+        const isFolder = meta.data.mimeType === 'application/vnd.google-apps.folder';
+
+        await clients.drive.files.update({
+          fileId,
+          requestBody: { trashed: true },
+        });
+
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `Trashed ${isFolder ? 'folder' : 'file'} "${name}" in ${account} Drive (recoverable from trash for 30 days)`,
+          }],
+        };
+      } catch (error) {
+        return { content: [{ type: 'text' as const, text: `drive_delete failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
     }
   );
