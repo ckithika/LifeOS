@@ -13,10 +13,14 @@
     "dev:google": "npx tsx packages/mcp-google/src/index.ts",
     "clean": "rm -rf packages/*/dist packages/*/tsconfig.tsbuildinfo",
     "auth": "npx tsx scripts/auth-google.ts",
+    "add-account": "npx tsx scripts/account/index.ts add",
+    "remove-account": "npx tsx scripts/account/index.ts remove",
+    "list-accounts": "npx tsx scripts/account/index.ts list",
     "deploy": "bash scripts/deploy.sh",
     "setup": "bash scripts/setup-wizard.sh",
     "preflight": "bash scripts/preflight.sh",
     "status": "bash scripts/status.sh",
+    "vault": "npx tsx scripts/vault-reorganize.ts",
     "lint": "eslint packages/*/src/**/*.ts",
     "typecheck": "tsc --noEmit --project tsconfig.json"
   },
@@ -30,6 +34,7 @@
     "url": "https://github.com/ckithika/lifeos.git"
   },
   "devDependencies": {
+    "@inquirer/prompts": "^8.2.1",
     "@types/node": "^20.11.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",

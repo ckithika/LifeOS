@@ -13,6 +13,8 @@ export interface AccountConfig {
   email: string;
   /** Account type */
   type: 'personal' | 'workspace';
+  /** Provider identifier (defaults to 'google' for backwards compatibility) */
+  provider?: string;
   /** Whether user is admin of this workspace */
   isAdmin?: boolean;
   /** Project slugs this account is associated with */
@@ -41,8 +43,22 @@ export interface VaultProject {
   status: string;
   category?: string;
   path: string;
+  /** Folder path for folder-based projects (e.g., 'Projects/Work/esp') */
+  folderPath: string;
   /** Display name parsed from frontmatter or slug */
   name?: string;
+}
+
+/** User-customizable vault structure configuration */
+export interface VaultStructureConfig {
+  /** Project category folders under Projects/ (default: ['Work','Personal','Archive']) */
+  projectCategories: string[];
+  /** Subfolders to create within each project folder (default: ['files']) */
+  projectSubfolders: string[];
+  /** Recommended frontmatter tags for project notes */
+  projectTags: string[];
+  /** Inbox organization style: per-contact folders or flat (default: 'by-contact') */
+  inboxStyle: 'by-contact' | 'flat';
 }
 
 export interface DailyNote {
@@ -299,9 +315,11 @@ export const VAULT_PATHS = {
   daily: 'Daily',
   files: 'Files',
   meetings: 'Files/Meetings',
+  research: 'Files/Research',
+  reports: 'Files/Reports',
   templates: 'Templates',
   areas: 'Areas',
-  inbox: 'Inbox.md',
+  inbox: 'Inbox',
   dashboard: 'Dashboard.md',
   syncLog: 'Daily/sync-log.md',
 } as const;
