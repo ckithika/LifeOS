@@ -1,5 +1,9 @@
 # LifeOS Setup Guide
 
+> **For AI assistants:** This guide is the source of truth for walking users through LifeOS setup. Follow each step in order, validate before proceeding, and adapt to the user's environment. Works with Claude Code, Cursor, Codex, or any AI coding assistant.
+>
+> **For humans:** Run `npm run setup` for an interactive wizard, or follow these steps manually.
+
 This guide walks you through setting up LifeOS from scratch. Total setup time: ~30-45 minutes.
 
 ## Prerequisites
@@ -125,7 +129,25 @@ GCP_PROJECT_ID=lifeos-prod
 GCP_REGION=europe-west1
 ```
 
-## Step 6: Authorize Google Accounts
+## Step 6: Configure Vault Structure
+
+LifeOS uses a folder-per-project structure in the vault. The defaults work well for most users, but you can customize categories, subfolders, and tags.
+
+See [vault-structure-guide.md](vault-structure-guide.md) for full details and example configs.
+
+**If using an AI assistant:** Ask the user about their workflow (freelancer, employee, student, founder?) and generate a config. Add the resulting values to `.env`.
+
+**If skipping customization:** The defaults are fine — `Work/`, `Personal/`, `Archive/` categories with a `files/` subfolder per project.
+
+```bash
+# Add to .env (or leave commented to use defaults):
+VAULT_CATEGORIES='["Work","Personal","Archive"]'
+PROJECT_SUBFOLDERS='["files"]'
+PROJECT_TAGS='["status/active","status/paused","status/done","type/client","type/product","type/personal"]'
+INBOX_STYLE=by-contact
+```
+
+## Step 7: Authorize Google Accounts
 
 Run the auth flow for each Google account you want to connect:
 
@@ -145,7 +167,7 @@ GOOGLE_TOKEN_PERSONAL='{"refresh_token":"1//0abc...","access_token":"","expiry_d
 GOOGLE_TOKEN_WORK='{"refresh_token":"1//0xyz...","access_token":"","expiry_date":null}'
 ```
 
-## Step 7: Build and Test Locally
+## Step 8: Build and Test Locally
 
 ```bash
 npm run build
@@ -167,7 +189,7 @@ curl http://localhost:3002/health
 
 > **Note:** Each service has its own default port (3001–3007). Do not set a global `PORT` in `.env` — it will override all services to the same port and cause conflicts.
 
-## Step 8: Deploy to Cloud Run
+## Step 9: Deploy to Cloud Run
 
 First, enable the required GCP APIs:
 
@@ -189,7 +211,7 @@ bash scripts/deploy.sh agent-sync &
 wait
 ```
 
-## Step 9: Connect to Claude.ai
+## Step 10: Connect to Claude.ai
 
 1. Open [Claude.ai Settings → Connected Apps](https://claude.ai/settings)
 2. Add MCP Server:
@@ -205,7 +227,7 @@ wait
 > **Tip:** Add custom instructions in Claude.ai (Settings → Profile) to prefer LifeOS MCP tools over built-in Google connectors:
 > *"When I ask about my calendar, email, tasks, drive, or contacts, always use the LifeOS MCP tools instead of the built-in Google connectors."*
 
-## Step 10: Set Up Background Agents
+## Step 11: Set Up Background Agents
 
 ### Granola Meeting Processing
 

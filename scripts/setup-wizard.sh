@@ -170,8 +170,42 @@ if [ "$ENV_NEEDS_EDIT" = true ]; then
   fi
 fi
 
-# ─── Step 4: Google OAuth ────────────────────────────────
-step 4 "Google OAuth Authorization"
+# ─── Step 4: Vault Structure ─────────────────────────────
+step 4 "Vault Structure"
+
+info "LifeOS organizes your vault with a folder-per-project structure."
+info "Default categories: Work, Personal, Archive"
+echo ""
+
+if grep -q "^VAULT_CATEGORIES=" .env 2>/dev/null; then
+  ok "Vault structure already configured in .env"
+else
+  if ask_yn "Use default vault structure (Work/Personal/Archive)?"; then
+    ok "Using default vault structure"
+  else
+    echo ""
+    info "Enter your project categories (comma-separated):"
+    read -rp "  Categories [Work,Personal,Archive]: " CUSTOM_CATS
+    CUSTOM_CATS="${CUSTOM_CATS:-Work,Personal,Archive}"
+
+    # Convert to JSON array
+    IFS=',' read -ra CAT_ARRAY <<< "$CUSTOM_CATS"
+    JSON_CATS=$(printf ',"%s"' "${CAT_ARRAY[@]}" | sed 's/^,//')
+    JSON_CATS="[${JSON_CATS}]"
+
+    echo "" >> .env
+    echo "# Vault Structure" >> .env
+    echo "VAULT_CATEGORIES='${JSON_CATS}'" >> .env
+    echo "PROJECT_SUBFOLDERS='[\"files\"]'" >> .env
+    echo "INBOX_STYLE=by-contact" >> .env
+    ok "Vault structure saved to .env"
+  fi
+fi
+
+info "See docs/vault-structure-guide.md for customization options."
+
+# ─── Step 5: Google OAuth ────────────────────────────────
+step 5 "Google OAuth Authorization"
 
 TOKEN_VAR="GOOGLE_TOKEN_PERSONAL"
 TOKEN_VAL="${!TOKEN_VAR:-}"
@@ -190,8 +224,8 @@ else
   ok "Google token configured for personal account"
 fi
 
-# ─── Step 5: Build ───────────────────────────────────────
-step 5 "Build"
+# ─── Step 6: Build ───────────────────────────────────────
+step 6 "Build"
 
 info "Building all packages..."
 npm run build 2>&1 || {
@@ -200,8 +234,8 @@ npm run build 2>&1 || {
 }
 ok "All packages built"
 
-# ─── Step 6: GCP APIs ────────────────────────────────────
-step 6 "GCP API Setup"
+# ─── Step 7: GCP APIs ────────────────────────────────────
+step 7 "GCP API Setup"
 
 PROJECT="${GCP_PROJECT_ID:-}"
 if [ -z "$PROJECT" ]; then
@@ -216,8 +250,8 @@ else
   done
 fi
 
-# ─── Step 7: Deploy ──────────────────────────────────────
-step 7 "Deploy to Cloud Run"
+# ─── Step 8: Deploy ──────────────────────────────────────
+step 8 "Deploy to Cloud Run"
 
 if ask_yn "Deploy all services to Cloud Run now?"; then
   bash scripts/deploy.sh
@@ -226,8 +260,8 @@ else
   warn "Skipped. Deploy later: npm run deploy"
 fi
 
-# ─── Step 8: Claude.ai Connection ────────────────────────
-step 8 "Connect to Claude.ai"
+# ─── Step 9: Claude.ai Connection ────────────────────────
+step 9 "Connect to Claude.ai"
 
 echo ""
 info "Add these MCP servers in Claude.ai → Settings → Connected Apps:"
