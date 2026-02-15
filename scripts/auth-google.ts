@@ -11,6 +11,7 @@
 
 import { createServer } from 'http';
 import { exec } from 'child_process';
+import { readFileSync, writeFileSync } from 'fs';
 import { URL } from 'url';
 import { google } from 'googleapis';
 import 'dotenv/config';
@@ -99,9 +100,32 @@ async function main() {
           expiry_date: tokens.expiry_date || undefined,
         });
 
-        console.log(`\n✅ Authorization successful for "${state}"!\n`);
-        console.log(`Add this to your .env file:\n`);
-        console.log(`${envKey}='${tokenJson}'\n`);
+        // Auto-write token to .env
+        const envPath = new URL('../.env', import.meta.url).pathname;
+        try {
+          let envContent = readFileSync(envPath, 'utf-8');
+          const envLine = `${envKey}='${tokenJson}'`;
+          const regex = new RegExp(`^${envKey}=.*$`, 'm');
+
+          if (regex.test(envContent)) {
+            envContent = envContent.replace(regex, envLine);
+            console.log(`\n✅ Updated ${envKey} in .env`);
+          } else {
+            envContent = envContent.trimEnd() + `\n${envLine}\n`;
+            console.log(`\n✅ Added ${envKey} to .env`);
+          }
+
+          writeFileSync(envPath, envContent);
+          console.log(`   Token written automatically — no manual copy needed.`);
+        } catch {
+          // Fallback to manual instructions if .env write fails
+          console.log(`\n✅ Authorization successful for "${state}"!\n`);
+          console.log(`Add this to your .env file:\n`);
+          console.log(`${envKey}='${tokenJson}'\n`);
+        }
+
+        console.log(`\n   Next: redeploy services that use Google APIs:`);
+        console.log(`   bash scripts/deploy.sh mcp-google`);
 
         // Give the browser time to load the response
         setTimeout(() => {

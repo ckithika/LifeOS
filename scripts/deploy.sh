@@ -18,6 +18,17 @@ fi
 PROJECT_ID="${GCP_PROJECT_ID:-lifeos-487513}"
 REGION="${GCP_REGION:-europe-west1}"
 
+# ─── Auto-enable required GCP APIs ────────────────────────
+ensure_apis() {
+  local apis=("run.googleapis.com" "cloudbuild.googleapis.com" "cloudscheduler.googleapis.com")
+  for api in "${apis[@]}"; do
+    if ! gcloud services list --project "$PROJECT_ID" --filter="config.name=$api" --format="value(config.name)" 2>/dev/null | grep -q "$api"; then
+      echo "  Enabling $api..."
+      gcloud services enable "$api" --project "$PROJECT_ID" --quiet 2>/dev/null || true
+    fi
+  done
+}
+
 # All deployable services
 SERVICES=(
   "mcp-obsidian"
@@ -167,11 +178,36 @@ create_scheduler() {
   echo "  📅 ${name}: ${schedule} → ${uri}"
 }
 
+# Print Claude.ai connection URLs
+print_mcp_urls() {
+  echo ""
+  echo "═══════════════════════════════════════"
+  echo "  Claude.ai MCP Connection URLs"
+  echo "═══════════════════════════════════════"
+  echo ""
+  echo "  Add these in Claude.ai → Settings → Connected Apps:"
+  echo ""
+
+  for service in "mcp-obsidian" "mcp-google"; do
+    local url
+    url=$(gcloud run services describe "lifeos-${service}" \
+      --project "$PROJECT_ID" --region "$REGION" \
+      --format 'value(status.url)' 2>/dev/null || echo "")
+    if [ -n "$url" ]; then
+      echo "  ${service}:  ${url}"
+    fi
+  done
+  echo ""
+}
+
 # Main
 main() {
   echo "🚀 LifeOS Deployment"
   echo "   Project: ${PROJECT_ID}"
   echo "   Region:  ${REGION}"
+
+  # Ensure GCP APIs are enabled
+  ensure_apis
 
   if [ $# -gt 0 ]; then
     # Deploy specific service
@@ -184,6 +220,9 @@ main() {
 
     # Set up scheduler
     deploy_schedulers
+
+    # Print MCP URLs for Claude.ai
+    print_mcp_urls
   fi
 
   echo ""

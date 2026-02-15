@@ -14,6 +14,9 @@
     "clean": "rm -rf packages/*/dist packages/*/tsconfig.tsbuildinfo",
     "auth": "npx tsx scripts/auth-google.ts",
     "deploy": "bash scripts/deploy.sh",
+    "setup": "bash scripts/setup-wizard.sh",
+    "preflight": "bash scripts/preflight.sh",
+    "status": "bash scripts/status.sh",
     "lint": "eslint packages/*/src/**/*.ts",
     "typecheck": "tsc --noEmit --project tsconfig.json"
   },
