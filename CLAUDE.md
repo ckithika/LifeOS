@@ -10,33 +10,37 @@ For vault structure customization, read `docs/vault-structure-guide.md`. Ask the
 
 ## Architecture
 
-- 7-package TypeScript monorepo (`packages/`)
+- 8-package TypeScript monorepo (`packages/`)
 - Two MCP servers (obsidian, google) connected to Claude.ai
 - Five background agents (sync, granola, briefing, drive-org, research)
+- One messaging channel (telegram) — Gemini-first AI with Claude fallback
 - All deployed to Google Cloud Run (scale-to-zero)
 - Vault stored in a private GitHub repo, accessed via GitHub API
 
 ## Key Conventions
 
-- Each service has its own default port (3001–3007) — never set global `PORT` in `.env`
+- Each service has its own default port (3001–3008) — never set global `PORT` in `.env`
 - MCP servers must handle requests at both `/` and `/mcp` (Claude.ai sends to `/`)
 - Each Cloud Run request needs a fresh `McpServer` instance (stateless)
-- Vault uses folder-per-project structure: `Projects/{Category}/{slug}/README.md`
+- Vault uses folder-per-project structure: `Areas/Projects/{Category}/{slug}/README.md`
 - Config is via environment variables (see `.env.example`)
 
 ## Vault Structure
 
 ```
-Projects/{Category}/{slug}/     ← project folders with README.md
-  README.md                     ← main project note
-  meeting-notes.md              ← meeting log
-  files/                        ← project attachments
-Inbox/{contact}/{sent|received}/ ← email attachments by contact
-Files/Meetings/                 ← transcripts and summaries
-Files/Research/                 ← research reports
-Files/Reports/                  ← generated reports
+Areas/
+  Projects/{Category}/{slug}/   ← project folders with README.md
+    README.md                   ← main project note
+    meeting-notes.md            ← meeting log
+    files/                      ← project attachments
+  Hobbies/                      ← hobby categories
+  Personal/                     ← personal areas (finances, health, etc.)
+Files/
+  Meetings/                     ← transcripts and summaries
+  Research/                     ← research reports
+  Reports/                      ← generated reports
+  Inbox/{contact}/{direction}/  ← email attachments by contact
 Daily/                          ← daily notes
-Areas/                          ← ongoing responsibilities
 Templates/                      ← note templates
 ```
 

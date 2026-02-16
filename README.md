@@ -18,13 +18,13 @@ LifeOS fixes this.
 
 > **6:30am** — A daily briefing appears in your vault: today's calendar, open tasks, emails needing replies, and follow-ups from yesterday's meetings.
 >
-> **9:00am** — *"What's the status on the ESP project?"* — Claude reads your project note, checks recent emails, lists open tasks, and gives you a summary.
+> **9:00am** — *"What's the status on the ESP project?"* — LifeOS reads your project note, checks recent emails, lists open tasks, and gives you a summary.
 >
-> **2:00pm** — *"Process my last meeting"* — Claude pulls the Granola transcript, writes a summary to your vault, extracts action items as tasks, and drafts a recap email.
+> **2:00pm** — *"Process my last meeting"* — LifeOS pulls the Granola transcript, writes a summary to your vault, extracts action items as tasks, and drafts a recap email.
 >
-> **5:00pm** — *"Is this business idea viable?"* — Claude runs deep research: market sizing, competitive analysis, and delivers a structured report with a go/no-go verdict.
+> **5:00pm** — *"Is this business idea viable?"* — LifeOS runs deep research: market sizing, competitive analysis, and delivers a structured report with a go/no-go verdict.
 
-All through conversation. All in Claude.ai — desktop, mobile, or voice.
+All through conversation. Claude.ai, Telegram, or voice — wherever you are. The Telegram bot uses Gemini (free tier) by default with automatic Claude fallback.
 
 ## Perfect For
 
@@ -76,22 +76,25 @@ For manual setup or troubleshooting, see [docs/setup-guide.md](docs/setup-guide.
 
 ## How It Works
 
-**MCP Servers** give Claude direct access to your vault and Google accounts. When you chat in Claude.ai, it can read project notes, search emails, check your calendar, create tasks — all through natural conversation.
+**Two ways to interact:**
+
+1. **Claude.ai + MCP Servers** — Chat directly in Claude.ai (desktop, mobile, voice). MCP servers give Claude native access to your vault and Google accounts — no API costs beyond your Claude Pro subscription.
+
+2. **Telegram bot** — Conversational AI on mobile powered by Gemini (free tier, 1,500 req/day). Automatically falls back to the Claude API if Gemini hits quota or errors. Same 29 tools, same data.
 
 **Background Agents** run on Cloud Run schedules. They sync data, organize files, generate briefings, and process meetings. High-risk actions (sending emails, creating invites) are queued in your daily note for approval.
 
-**Your Obsidian vault** is the single source of truth. Everything flows through it — meeting notes, email summaries, task lists, file links, daily briefings. It syncs to GitHub so Claude can access it from anywhere.
-
-**Works everywhere** — Claude.ai desktop, mobile, voice mode, and Claude Projects all use the same MCP tools.
+**Your Obsidian vault** is the single source of truth. Everything flows through it — meeting notes, email summaries, task lists, file links, daily briefings. It syncs to GitHub so both Claude.ai and the Telegram bot can access it from anywhere.
 
 ## What It Costs
 
 | Component | Monthly Cost |
 |-----------|-------------|
-| Cloud Run (7 services, scale-to-zero) | $0 |
-| Cloud Scheduler (8 cron jobs) | $0 |
+| Cloud Run (8 services, scale-to-zero) | $0 |
+| Cloud Scheduler (9 cron jobs) | $0 |
 | Claude Pro subscription | $20 |
-| Anthropic API (background agents) | ~$2-5 |
+| Gemini API (Telegram bot, free tier) | $0 |
+| Anthropic API (fallback + background agents) | ~$2-5 |
 | **Total** | **~$22-25/mo** |
 
 No surprise bills. Cloud Run's free tier covers LifeOS usage comfortably. The API cost depends on how actively your background agents run.
@@ -115,18 +118,21 @@ No surprise bills. Cloud Run's free tier covers LifeOS usage comfortably. The AP
 <summary><strong>Architecture</strong></summary>
 
 ```
-Claude.ai ──MCP──> mcp-obsidian (vault via GitHub)
-           ──MCP──> mcp-google (Gmail, Calendar, Tasks, Drive, Contacts x N accounts)
+Claude.ai ──MCP──> mcp-obsidian (vault via GitHub)       ← direct, no API cost
+           ──MCP──> mcp-google (Calendar, Gmail, Tasks, Drive, Contacts × N accounts)
+
+Telegram ──> channel-telegram ──> Gemini API (primary, free tier)
+                               └─> Claude API (automatic fallback)
 
 Background:
   agent-granola     Manual trigger or future webhook -> process meeting notes
   agent-sync        3x daily -> sync all Google data to vault
   agent-drive-org   Daily -> classify & organize Drive files
-  agent-briefing    6:30am -> generate daily briefing note
+  agent-briefing    6:30am -> generate daily briefing note + Telegram notification
   agent-research    On demand -> deep research reports
 ```
 
-### 23 MCP Tools
+### 27 MCP Tools + Telegram Bot (29 total)
 
 | Tool | What it does |
 |------|-------------|
@@ -153,17 +159,24 @@ Background:
 | `drive_organize` | Move/organize Drive files |
 | `contacts_search` | Search contacts across accounts |
 | `contacts_lookup` | Look up a specific person |
+| `delete_note` | Delete a vault file |
+| `move_note` | Move/rename a vault file |
+| `drive_create_folder` | Create folders in Drive |
+| `drive_delete` | Trash files in Drive |
+
+The **Telegram bot** (`channel-telegram`) exposes all 27 tools plus `trigger_briefing` and `research` agent tools — 29 tools total via conversational AI.
 
 ### Package Dependencies
 
 ```
-shared (Google auth, vault access, contacts, config, project paths)
-  <- mcp-obsidian (7 vault tools)
-  <- mcp-google (16 Google tools)
+shared (Google auth, vault access, contacts, config, project paths, Telegram utils)
+  <- mcp-obsidian (9 vault tools)
+  <- mcp-google (18 Google tools)
+  <- channel-telegram (29 tools via Gemini/Claude AI chat)
   <- agent-granola (meeting pipeline)
   <- agent-sync (data sync)
   <- agent-drive-org (file organization)
-  <- agent-briefing (daily briefing)
+  <- agent-briefing (daily briefing + Telegram notification)
   <- agent-research (research reports)
 ```
 
@@ -176,12 +189,13 @@ shared (Google auth, vault access, contacts, config, project paths)
 lifeos/
 ├── packages/
 │   ├── shared/              # Google auth, vault access, contacts, config, project paths
-│   ├── mcp-obsidian/        # MCP server: Obsidian vault via GitHub (7 tools)
-│   ├── mcp-google/          # MCP server: multi-account Google access (16 tools)
+│   ├── mcp-obsidian/        # MCP server: Obsidian vault via GitHub (9 tools)
+│   ├── mcp-google/          # MCP server: multi-account Google access (18 tools)
+│   ├── channel-telegram/    # Telegram bot: Gemini-first AI with Claude fallback
 │   ├── agent-granola/       # Post-meeting automation pipeline
 │   ├── agent-sync/          # Background sync (Gmail, Calendar, Tasks, Files)
 │   ├── agent-drive-org/     # Drive cleanup & organization
-│   ├── agent-briefing/      # Daily briefing generator
+│   ├── agent-briefing/      # Daily briefing generator + Telegram notifications
 │   └── agent-research/      # Deep research on demand
 ├── scripts/                 # Setup, deploy, auth, account management, vault tools
 ├── docs/                    # Architecture, setup guide, vault structure guide
@@ -196,27 +210,25 @@ lifeos/
 The Obsidian vault uses a folder-per-project layout with configurable categories:
 
 ```
-Projects/
-├── Consulting/{slug}/       # Client consulting projects
-│   ├── README.md            # Main project note (frontmatter tags)
-│   ├── meeting-notes.md     # Chronological meeting log
-│   └── files/               # Project attachments (synced from Drive/email)
-├── SaaS/{slug}/             # SaaS products
-├── Business/{slug}/         # Business operations
-└── Archive/{slug}/          # Completed/inactive projects
+Areas/
+├── Projects/
+│   ├── Consulting/{slug}/       # Client consulting projects
+│   │   ├── README.md            # Main project note (frontmatter tags)
+│   │   ├── meeting-notes.md     # Chronological meeting log
+│   │   └── files/               # Project attachments (synced from Drive/email)
+│   ├── Open Source/{slug}/      # Open source projects
+│   ├── Ideas/{slug}/            # Ideas and explorations
+│   └── Archive/{slug}/          # Completed/inactive projects
+└── (other areas)
 
-Inbox/{contact-name}/        # Email attachments organized by contact
-├── received/
-└── sent/
+Files/                           # System-generated files
+├── Inbox/{contact}/             # Email attachments by contact
+├── Meetings/                    # Transcripts & summaries
+├── Research/                    # Research reports
+└── Reports/                    # Generated reports
 
-Files/                       # System-generated files only
-├── Meetings/                # Transcripts & summaries
-├── Research/                # Research reports
-└── Reports/                 # Generated reports
-
-Daily/                       # Daily notes (YYYY-MM-DD.md)
-Areas/                       # Ongoing responsibilities
-Templates/                   # Note templates
+Daily/                           # Daily notes (YYYY-MM-DD.md)
+Templates/                       # Note templates
 ```
 
 Categories, subfolders, and tags are configurable via environment variables.
@@ -230,15 +242,19 @@ See [docs/vault-structure-guide.md](docs/vault-structure-guide.md) for customiza
 - Account management CLI (`npm run add-account`) — interactive multi-provider setup
 - Vault reorganization tooling — move projects, validate structure, archive
 
+**Recently Shipped**
+- Gemini AI provider — free-tier Gemini as primary Telegram bot AI with automatic Claude fallback
+- Telegram bot — conversational AI with full tool parity (29 tools), slash commands, meeting reminders
+- Vault restructure — projects under Areas/, folder-per-project migration
+
 **Planned**
-- Telegram bot — bidirectional messaging with all LifeOS agents
 - WhatsApp integration — proactive notifications and conversational access
 - Vault semantic search — vector embeddings for conceptual search alongside keyword search
 - n8n self-hosted — free webhook relay replacing manual Granola triggers
 
 **Future**
 - Microsoft 365 / Outlook support
-- Multi-model fallback (Gemini, GPT as alternatives)
+- GPT as additional fallback provider
 - Event-driven triggers (Gmail push, calendar webhooks)
 - `npx create-lifeos` — one-command setup for new users
 - Slack, Notion, and additional meeting source integrations

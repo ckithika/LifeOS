@@ -8,12 +8,52 @@ This guide walks you through setting up LifeOS from scratch. Total setup time: ~
 
 ## Prerequisites
 
-- **Node.js 20+** — `node --version` should show v20 or higher
-- **Git** — for vault syncing
-- **Google Cloud SDK** — `brew install google-cloud-sdk` (macOS) or [install guide](https://cloud.google.com/sdk/docs/install)
-- **Obsidian** — [download](https://obsidian.md) (optional, for local vault viewing)
-- **Claude Pro** subscription — for MCP server connections
-- **Granola** — [granola.ai](https://granola.ai) (optional, for meeting automation)
+You'll need the following installed before starting. If any are missing, follow the official install links below.
+
+### Required
+
+| Tool | Check | Install |
+|------|-------|---------|
+| **Homebrew** (macOS) | `brew --version` | [brew.sh](https://brew.sh) |
+| **Node.js 20+** | `node --version` | [nodejs.org/en/download](https://nodejs.org/en/download) |
+| **npm** | `npm --version` (included with Node.js) | Comes with Node.js |
+| **Git** | `git --version` | [git-scm.com/downloads](https://git-scm.com/downloads) |
+| **GitHub account** | — | [github.com/signup](https://github.com/signup) |
+| **Google Cloud SDK** | `gcloud --version` | [cloud.google.com/sdk/docs/install](https://cloud.google.com/sdk/docs/install) |
+| **Google account** | — | At least one Gmail or Google Workspace account |
+
+### Optional
+
+| Tool | What for | Install |
+|------|----------|---------|
+| **Gemini API key** | Free-tier AI for Telegram bot (1,500 req/day) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| **Claude Pro** | MCP server connections via Claude.ai | [claude.ai/upgrade](https://claude.ai/upgrade) |
+| **Obsidian** | Local vault viewing and editing | [obsidian.md/download](https://obsidian.md/download) |
+| **Granola** | Meeting automation (transcript → tasks) | [granola.ai](https://granola.ai) |
+
+> **macOS quickstart with Homebrew:**
+> ```bash
+> # Install Homebrew (if not installed)
+> /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+>
+> # Then install prerequisites
+> brew install node git
+> brew install --cask google-cloud-sdk
+> ```
+>
+> **Windows:** Use the official installers linked above, or install via [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/):
+> ```powershell
+> winget install OpenJS.NodeJS.LTS
+> winget install Git.Git
+> winget install Google.CloudSDK
+> ```
+>
+> **Linux (Debian/Ubuntu):**
+> ```bash
+> curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+> sudo apt-get install -y nodejs git
+> # For gcloud: https://cloud.google.com/sdk/docs/install#deb
+> ```
 
 ## Step 1: Clone and Install
 
@@ -121,7 +161,10 @@ GITHUB_REPO_NAME=lifeos-vault
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-client-secret
 
-# Anthropic (for background agents)
+# Google AI / Gemini (primary for Telegram bot — free tier)
+GOOGLE_AI_API_KEY=your-key-from-aistudio.google.com/apikey
+
+# Anthropic (fallback for Telegram bot + background agents)
 ANTHROPIC_API_KEY=sk-ant-your-key
 
 # GCP
@@ -227,7 +270,78 @@ wait
 > **Tip:** Add custom instructions in Claude.ai (Settings → Profile) to prefer LifeOS MCP tools over built-in Google connectors:
 > *"When I ask about my calendar, email, tasks, drive, or contacts, always use the LifeOS MCP tools instead of the built-in Google connectors."*
 
-## Step 11: Set Up Background Agents
+## Step 11: Set Up Telegram Bot (Optional)
+
+The Telegram bot gives you a conversational AI interface to LifeOS on mobile. It has full tool parity with the MCP servers — 29 tools including calendar, tasks, email, Drive, vault, contacts, and agent triggers.
+
+Each user creates their own Telegram bot, so you choose the bot name and avatar.
+
+### Create Your Bot
+
+1. Open Telegram and message [@BotFather](https://t.me/BotFather)
+2. Send `/newbot`
+3. Choose a **display name** (e.g., "LifeOS", "My Assistant", anything you want)
+4. Choose a **username** (must end in `bot`, e.g., `MyLifeOS_Bot`)
+5. BotFather gives you a **bot token** — copy it
+
+### Get Your Chat ID
+
+1. Message [@userinfobot](https://t.me/userinfobot) on Telegram
+2. It replies with your **user ID** (a number like `250619498`)
+
+### Configure Environment
+
+Add to your `.env`:
+
+```bash
+TELEGRAM_BOT_TOKEN=your-bot-token-from-botfather
+TELEGRAM_CHAT_ID=your-telegram-user-id
+TELEGRAM_ALLOWED_USERS=your-telegram-user-id
+TELEGRAM_WEBHOOK_SECRET=$(openssl rand -hex 32)
+```
+
+### Deploy and Set Webhook
+
+```bash
+# Deploy the Telegram service
+npm run deploy channel-telegram
+
+# Get the service URL
+gcloud run services describe lifeos-channel-telegram \
+  --project=$GCP_PROJECT_ID --region=$GCP_REGION \
+  --format='value(status.url)'
+
+# Add the webhook URL to .env
+# TELEGRAM_WEBHOOK_URL=https://lifeos-channel-telegram-xxx.run.app/webhook
+
+# Set the webhook with Telegram
+curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d "{\"url\": \"${TELEGRAM_WEBHOOK_URL}\", \"secret_token\": \"${TELEGRAM_WEBHOOK_SECRET}\"}"
+```
+
+### Start Chatting
+
+1. Open your bot in Telegram and press **Start**
+2. Try `/help` for available commands
+3. Or just chat naturally: "What's on my schedule today?" or "Add a task to review the proposal"
+
+The bot supports both slash commands (`/schedule`, `/tasks`, `/briefing`, `/projects`, `/research <topic>`) and free-text conversation. The Telegram bot uses **Gemini** (free tier) as the primary AI provider and falls back to **Claude** automatically on errors or quota exhaustion. Set `GOOGLE_AI_API_KEY` in `.env` to enable Gemini — without it, the bot uses Claude only.
+
+### Agent URLs (Optional)
+
+If you want `/briefing` and `/research` commands to call your deployed agents directly:
+
+```bash
+AGENT_BRIEFING_URL=https://lifeos-agent-briefing-xxx.run.app
+AGENT_RESEARCH_URL=https://lifeos-agent-research-xxx.run.app
+```
+
+## Step 12: Set Up Background Agents
+
+### Telegram Reminders
+
+The deploy script automatically creates a Cloud Scheduler job that checks upcoming meetings every 15 minutes (6am-9pm EAT) and sends Telegram reminders. This is set up automatically when you run `npm run deploy`.
 
 ### Granola Meeting Processing
 
