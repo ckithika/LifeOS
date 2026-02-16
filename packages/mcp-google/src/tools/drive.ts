@@ -160,38 +160,78 @@ export function registerDriveTools(server: McpServer) {
   // @ts-ignore TS2589: deep type instantiation varies by TS version
   server.tool(
     'drive_upload',
-    'Upload a file to Google Drive.',
+    'Upload a file to Google Drive. Use convertTo to create native Google Docs or Sheets (provide HTML or CSV content). Google Slides cannot be created from scratch — use drive_copy_template instead.',
     {
       name: z.string().describe('File name'),
-      content: z.string().describe('File content (text content or base64 for binary)'),
+      content: z.string().describe('File content (text, HTML for Docs, CSV for Sheets, or base64 for binary)'),
       account: z.string().describe('Account alias'),
-      mimeType: z.string().default('text/plain').describe('MIME type of the content'),
+      mimeType: z.string().default('text/plain').describe('MIME type of the content (use text/html for Docs, text/csv for Sheets)'),
       folderId: z.string().optional().describe('Parent folder ID'),
+      convertTo: z.enum(['document', 'spreadsheet']).optional().describe('Convert to native Google format: "document" (Google Docs) or "spreadsheet" (Google Sheets)'),
     },
-    async ({ name, content, account, mimeType, folderId }) => {
+    async ({ name, content, account, mimeType, folderId, convertTo }) => {
       try {
         const clients = getGoogleClients(account);
+        const requestBody: Record<string, any> = {
+          name,
+          parents: folderId ? [folderId] : undefined,
+        };
+        if (convertTo === 'document') {
+          requestBody.mimeType = 'application/vnd.google-apps.document';
+        } else if (convertTo === 'spreadsheet') {
+          requestBody.mimeType = 'application/vnd.google-apps.spreadsheet';
+        }
 
         const response = await clients.drive.files.create({
-          requestBody: {
-            name,
-            parents: folderId ? [folderId] : undefined,
-          },
-          media: {
-            mimeType,
-            body: content,
-          },
+          requestBody,
+          media: { mimeType, body: content },
           fields: 'id,name,webViewLink',
         });
 
+        const format = convertTo ? `Google ${convertTo === 'document' ? 'Doc' : 'Sheet'}` : name;
         return {
           content: [{
             type: 'text' as const,
-            text: `Uploaded "${name}" to ${account} Drive\n  ID: ${response.data.id}${response.data.webViewLink ? `\n  Link: ${response.data.webViewLink}` : ''}`,
+            text: `Uploaded "${name}" as ${format} to ${account} Drive\n  ID: ${response.data.id}${response.data.webViewLink ? `\n  Link: ${response.data.webViewLink}` : ''}`,
           }],
         };
       } catch (error) {
         return { content: [{ type: 'text' as const, text: `drive_upload failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+      }
+    }
+  );
+
+  // ─── drive_copy_template ──────────────────────────────────────
+
+  // @ts-ignore TS2589: deep type instantiation varies by TS version
+  server.tool(
+    'drive_copy_template',
+    'Create a new Google Docs, Sheets, or Slides file by copying an existing template. Use this for Google Slides since they cannot be created from scratch.',
+    {
+      templateFileId: z.string().describe('File ID of the template to copy'),
+      name: z.string().describe('Name for the new file'),
+      account: z.string().describe('Account alias'),
+      folderId: z.string().optional().describe('Parent folder ID for the copy'),
+    },
+    async ({ templateFileId, name, account, folderId }) => {
+      try {
+        const clients = getGoogleClients(account);
+        const response = await clients.drive.files.copy({
+          fileId: templateFileId,
+          requestBody: {
+            name,
+            parents: folderId ? [folderId] : undefined,
+          },
+          fields: 'id,name,mimeType,webViewLink',
+        });
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `Created "${name}" from template in ${account} Drive\n  ID: ${response.data.id}\n  Type: ${response.data.mimeType}${response.data.webViewLink ? `\n  Link: ${response.data.webViewLink}` : ''}`,
+          }],
+        };
+      } catch (error) {
+        return { content: [{ type: 'text' as const, text: `drive_copy_template failed: ${error instanceof Error ? error.message : String(error)}` }], isError: true };
       }
     }
   );

@@ -226,17 +226,32 @@ export const TOOL_DEFS: ToolParam[] = [
   },
   {
     name: 'drive_upload',
-    description: 'Upload a file to Google Drive.',
+    description: 'Upload a file to Google Drive. Use convertTo to create native Google Docs or Sheets (provide HTML or CSV content). Google Slides cannot be created from scratch — use drive_copy_template instead.',
     parameters: {
       type: 'object',
       properties: {
         name: { type: 'string', description: 'File name' },
-        content: { type: 'string', description: 'File content (text or base64)' },
+        content: { type: 'string', description: 'File content (text, HTML for Docs, CSV for Sheets, or base64 for binary)' },
         account: { type: 'string', description: 'Account alias' },
-        mimeType: { type: 'string', description: 'MIME type (default text/plain)' },
+        mimeType: { type: 'string', description: 'MIME type of the content (default text/plain). Use text/html for Docs, text/csv for Sheets.' },
         folderId: { type: 'string', description: 'Parent folder ID' },
+        convertTo: { type: 'string', enum: ['document', 'spreadsheet'], description: 'Convert to native Google format: "document" (Google Docs) or "spreadsheet" (Google Sheets)' },
       },
       required: ['name', 'content', 'account'],
+    },
+  },
+  {
+    name: 'drive_copy_template',
+    description: 'Create a new Google Docs, Sheets, or Slides file by copying an existing template. Use this for Google Slides since they cannot be created from scratch.',
+    parameters: {
+      type: 'object',
+      properties: {
+        templateFileId: { type: 'string', description: 'File ID of the template to copy' },
+        name: { type: 'string', description: 'Name for the new file' },
+        account: { type: 'string', description: 'Account alias' },
+        folderId: { type: 'string', description: 'Parent folder ID for the copy' },
+      },
+      required: ['templateFileId', 'name', 'account'],
     },
   },
   {
@@ -900,17 +915,46 @@ export async function executeTool(name: string, input: Record<string, unknown>):
     }
 
     case 'drive_upload': {
-      const { name, content, account, mimeType = 'text/plain', folderId } = input as any;
+      const { name, content, account, mimeType = 'text/plain', folderId, convertTo } = input as any;
       try {
         const clients = getGoogleClients(account);
+        const requestBody: Record<string, any> = {
+          name,
+          parents: folderId ? [folderId] : undefined,
+        };
+        // Set target mimeType to convert to native Google format
+        if (convertTo === 'document') {
+          requestBody.mimeType = 'application/vnd.google-apps.document';
+        } else if (convertTo === 'spreadsheet') {
+          requestBody.mimeType = 'application/vnd.google-apps.spreadsheet';
+        }
         const response = await clients.drive.files.create({
-          requestBody: { name, parents: folderId ? [folderId] : undefined },
+          requestBody,
           media: { mimeType, body: content },
           fields: 'id,name,webViewLink',
         });
-        return JSON.stringify({ success: true, file: { id: response.data.id, name, webViewLink: response.data.webViewLink } });
+        const format = convertTo ? `Google ${convertTo === 'document' ? 'Doc' : 'Sheet'}` : name;
+        return JSON.stringify({ success: true, file: { id: response.data.id, name, format, webViewLink: response.data.webViewLink } });
       } catch (e: any) {
         return JSON.stringify({ error: `drive_upload failed: ${e.message}` });
+      }
+    }
+
+    case 'drive_copy_template': {
+      const { templateFileId, name, account, folderId } = input as any;
+      try {
+        const clients = getGoogleClients(account);
+        const response = await clients.drive.files.copy({
+          fileId: templateFileId,
+          requestBody: {
+            name,
+            parents: folderId ? [folderId] : undefined,
+          },
+          fields: 'id,name,mimeType,webViewLink',
+        });
+        return JSON.stringify({ success: true, file: { id: response.data.id, name, mimeType: response.data.mimeType, webViewLink: response.data.webViewLink } });
+      } catch (e: any) {
+        return JSON.stringify({ error: `drive_copy_template failed: ${e.message}` });
       }
     }
 
@@ -1122,7 +1166,7 @@ export const TOOL_GROUPS: Record<string, string[]> = {
   calendar: ['calendar_list', 'calendar_create', 'calendar_freebusy'],
   email: ['gmail_search', 'gmail_read', 'gmail_draft', 'gmail_attachments'],
   tasks: ['tasks_list', 'tasks_create', 'tasks_update'],
-  drive: ['drive_list', 'drive_download', 'drive_upload', 'drive_create_folder', 'drive_organize', 'drive_delete'],
+  drive: ['drive_list', 'drive_download', 'drive_upload', 'drive_copy_template', 'drive_create_folder', 'drive_organize', 'drive_delete'],
   contacts: ['contacts_search', 'contacts_lookup'],
   vault: ['read_note', 'write_note', 'search_vault', 'list_projects', 'create_project', 'list_files', 'daily_note', 'delete_note', 'move_note'],
   agents: ['trigger_briefing', 'research'],
