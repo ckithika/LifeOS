@@ -253,11 +253,13 @@ See [docs/vault-structure-guide.md](docs/vault-structure-guide.md) for customiza
 - n8n self-hosted — free webhook relay replacing manual Granola triggers
 
 **Future**
+- Alternative vault backends — Logseq, Dendron, Foam, Zettlr (all markdown-on-disk, near-zero effort via same GitHub API)
+- Notion / SiYuan support — API-based vault backends for non-markdown-native apps
 - Microsoft 365 / Outlook support
 - GPT as additional fallback provider
 - Event-driven triggers (Gmail push, calendar webhooks)
 - `npx create-lifeos` — one-command setup for new users
-- Slack, Notion, and additional meeting source integrations
+- Slack and additional meeting source integrations
 
 See [TODO.md](TODO.md) for the full roadmap.
 

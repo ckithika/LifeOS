@@ -1173,17 +1173,32 @@ export const TOOL_GROUPS: Record<string, string[]> = {
 };
 
 const ROUTE_PATTERNS: Array<{ pattern: RegExp; groups: string[] }> = [
-  { pattern: /schedul|calendar|event|meeting|free|busy|block.*time|book|appoint|invite|slot|availab/i, groups: ['calendar', 'contacts'] },
-  { pattern: /email|e-mail|mail|draft|send|inbox|reply|compose|gmail|forward|cc\b|bcc/i, groups: ['email', 'contacts'] },
-  { pattern: /\btask|todo|to.do|to-do|action.?item|remind|checklist|due\b|overdue|complete.*task/i, groups: ['tasks'] },
-  { pattern: /drive|upload|download|folder|document|pdf|sheet|doc\b|slide|presentation|spreadsheet|google.?doc/i, groups: ['drive'] },
+  // Calendar/scheduling — include vault for meeting notes context
+  { pattern: /schedul|calendar|event|meeting|free|busy|block.*time|book|appoint|invite|slot|availab/i, groups: ['calendar', 'contacts', 'vault'] },
+  // Email — include drive for attachments, tasks for follow-up actions
+  { pattern: /email|e-mail|mail|draft|send|inbox|reply|compose|gmail|forward|cc\b|bcc/i, groups: ['email', 'contacts', 'drive', 'tasks'] },
+  // Tasks — include calendar (task↔event ambiguity: "move task to 2pm") and contacts
+  { pattern: /\btask|todo|to.do|to-do|action.?item|remind|checklist|due\b|overdue|complete.*task/i, groups: ['tasks', 'calendar', 'contacts'] },
+  // Drive — include vault for organization context
+  { pattern: /drive|upload|download|folder|document|pdf|sheet|doc\b|slide|presentation|spreadsheet|google.?doc/i, groups: ['drive', 'vault'] },
+  // Contacts
   { pattern: /contact|who is|find.*email|look.*up.*person|attendee|phone|number for/i, groups: ['contacts'] },
-  { pattern: /\bnote|vault|obsidian|project|daily|journal|search.*vault|write.*note|read.*note|meeting.?note/i, groups: ['vault'] },
-  { pattern: /brief|morning|daily brief|what.*today|my day|my plate|agenda|summary.*day/i, groups: ['agents', 'calendar', 'tasks'] },
+  // Vault/notes — include tasks for project task context
+  { pattern: /\bnote|vault|obsidian|project|daily|journal|search.*vault|write.*note|read.*note|meeting.?note/i, groups: ['vault', 'tasks'] },
+  // Daily briefing — include email for inbox summary
+  { pattern: /brief|morning|daily brief|what.*today|my day|my plate|agenda|summary.*day/i, groups: ['agents', 'calendar', 'tasks', 'email', 'vault'] },
+  // Research
   { pattern: /research|analy[sz]|compar|evaluat|investig|market.*size|competitive/i, groups: ['agents'] },
-  { pattern: /create.*project|new.*project|start.*project|project.*status|update.*project/i, groups: ['vault', 'tasks'] },
-  { pattern: /what.*schedul|what.*pending|status|overview|what.*happening|catch.*up/i, groups: ['calendar', 'tasks'] },
-  { pattern: /\bfile|attachment|transcript|report\b/i, groups: ['vault', 'drive'] },
+  // Project management — include calendar and email for full project context
+  { pattern: /create.*project|new.*project|start.*project|project.*status|update.*project/i, groups: ['vault', 'tasks', 'calendar', 'email'] },
+  // Status/overview — include vault and email for full picture
+  { pattern: /what.*schedul|what.*pending|status|overview|what.*happening|catch.*up/i, groups: ['calendar', 'tasks', 'vault', 'email'] },
+  // Files/attachments — include email for attachment context
+  { pattern: /\bfile|attachment|transcript|report\b/i, groups: ['vault', 'drive', 'email'] },
+  // Review/retrospective — look back at recent work
+  { pattern: /review|retrospect|recap|debrief|wrap.?up|last week|this week|progress/i, groups: ['vault', 'calendar', 'tasks', 'email'] },
+  // Move/reschedule — ambiguous between tasks and calendar
+  { pattern: /\bmove\b|reschedul|postpon|push.*back|bring.*forward|defer/i, groups: ['tasks', 'calendar'] },
 ];
 
 /** Route message to relevant tools (typically 3-8 instead of 29) */
@@ -1198,10 +1213,11 @@ export function routeTools(message: string): ToolParam[] {
     }
   }
 
-  // No keyword match → default set
+  // No keyword match → default set (calendar + tasks + vault covers most queries)
   if (matchedGroups.size === 0) {
     matchedGroups.add('calendar');
     matchedGroups.add('tasks');
+    matchedGroups.add('vault');
   }
 
   const toolNames = new Set<string>();
