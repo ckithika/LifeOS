@@ -17,7 +17,7 @@ export function registerGmailTools(server: McpServer) {
 
   // ─── gmail_search ───────────────────────────────────────────
 
-  // @ts-expect-error TS2589: MCP SDK server.tool() deep type instantiation
+  // @ts-ignore TS2589: deep type instantiation varies by TS version
   server.tool(
     'gmail_search',
     'Search emails across all Google accounts. Uses Gmail search syntax (from:, to:, subject:, has:attachment, etc). Returns snippets — use gmail_read for full content.',
@@ -170,7 +170,7 @@ export function registerGmailTools(server: McpServer) {
 
   // ─── gmail_draft ────────────────────────────────────────────
 
-  // @ts-expect-error TS2589: MCP SDK server.tool() deep type instantiation
+  // @ts-ignore TS2589: deep type instantiation varies by TS version
   server.tool(
     'gmail_draft',
     'Create an email draft. Automatically routes to the correct account based on project context.',
@@ -231,7 +231,7 @@ export function registerGmailTools(server: McpServer) {
 
   // ─── gmail_attachments ──────────────────────────────────────
 
-  // @ts-expect-error TS2589: MCP SDK server.tool() deep type instantiation
+  // @ts-ignore TS2589: deep type instantiation varies by TS version
   server.tool(
     'gmail_attachments',
     'List or download attachments from an email message.',

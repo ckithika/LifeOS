@@ -40,7 +40,7 @@ function registerTools(server: McpServer) {
 
 // ─── Tool: read_note ────────────────────────────────────────
 
-// @ts-expect-error TS2589: MCP SDK server.tool() deep type instantiation
+// @ts-ignore TS2589: deep type instantiation varies by TS version
 server.tool(
   'read_note',
   'Read a file from the Obsidian vault. Use paths relative to vault root (e.g., "Projects/Work/esp/README.md", "Daily/2026-02-15.md").',

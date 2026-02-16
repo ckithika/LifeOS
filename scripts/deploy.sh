@@ -38,6 +38,7 @@ SERVICES=(
   "agent-briefing"
   "agent-drive-org"
   "agent-research"
+  "channel-telegram"
 )
 
 # Map service name to package directory
@@ -154,6 +155,15 @@ deploy_schedulers() {
   if [ -n "$drive_url" ]; then
     # Drive organize: daily at 7am EAT = 4am UTC
     create_scheduler "lifeos-drive-organize" "0 4 * * *" "${drive_url}/organize" "POST"
+  fi
+
+  local telegram_url
+  telegram_url=$(gcloud run services describe "lifeos-channel-telegram" \
+    --project "$PROJECT_ID" --region "$REGION" --format 'value(status.url)' 2>/dev/null || echo "")
+
+  if [ -n "$telegram_url" ]; then
+    # Reminders: every 15 min during 6am-9pm EAT = 3am-6pm UTC
+    create_scheduler "lifeos-telegram-reminders" "*/15 3-18 * * *" "${telegram_url}/reminders" "POST"
   fi
 
   echo "✅ Scheduler jobs configured"

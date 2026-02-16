@@ -157,7 +157,7 @@ export function registerDriveTools(server: McpServer) {
 
   // ─── drive_upload ───────────────────────────────────────────
 
-  // @ts-expect-error TS2589: MCP SDK server.tool() deep type instantiation
+  // @ts-ignore TS2589: deep type instantiation varies by TS version
   server.tool(
     'drive_upload',
     'Upload a file to Google Drive.',

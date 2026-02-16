@@ -78,3 +78,9 @@ export {
   findContact,
   findEmail,
 } from './contacts.js';
+
+// Telegram
+export {
+  sendTelegramMessage,
+  sendTelegramDocument,
+} from './telegram.js';

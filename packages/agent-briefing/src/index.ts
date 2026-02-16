@@ -20,6 +20,7 @@ import {
   loadConfig,
   writeDailyNote,
   listProjects,
+  sendTelegramMessage,
 } from '@lifeos/shared';
 import type { CalendarEvent, TaskItem } from '@lifeos/shared';
 
@@ -277,6 +278,23 @@ ${sections.projects}
 
   await writeDailyNote(content, date);
   console.log(`[briefing] Daily note written for ${date}`);
+
+  // Send briefing summary to Telegram if configured
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (chatId) {
+    const summary = [
+      `<b>📋 Daily Briefing — ${date}</b>`,
+      '',
+      `<b>📅 Calendar</b>\n${sections.calendar}`,
+      '',
+      `<b>✅ Tasks</b>\n${sections.tasks}`,
+      '',
+      `<b>📧 Emails</b>\n${sections.emails}`,
+    ].join('\n');
+
+    await sendTelegramMessage(chatId, summary.slice(0, 4000), { parse_mode: 'HTML' });
+    console.log(`[briefing] Telegram notification sent to ${chatId}`);
+  }
 
   return sections;
 }

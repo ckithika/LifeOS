@@ -11,7 +11,7 @@ import { listDirectory } from './vault.js';
 // ─── Default Configuration ──────────────────────────────
 
 const DEFAULT_CONFIG: VaultStructureConfig = {
-  projectCategories: ['Consulting', 'SaaS', 'Business', 'Archive'],
+  projectCategories: ['Consulting', 'Node Works', 'Ideas', 'Open Source', 'Archive'],
   projectSubfolders: ['files'],
   projectTags: [
     'status/active',
@@ -21,7 +21,6 @@ const DEFAULT_CONFIG: VaultStructureConfig = {
     'type/product',
     'type/personal',
   ],
-  inboxStyle: 'by-contact',
 };
 
 /**
@@ -32,7 +31,6 @@ export function getVaultConfig(): VaultStructureConfig {
     projectCategories: parseJsonEnv('VAULT_CATEGORIES', DEFAULT_CONFIG.projectCategories),
     projectSubfolders: parseJsonEnv('PROJECT_SUBFOLDERS', DEFAULT_CONFIG.projectSubfolders),
     projectTags: parseJsonEnv('PROJECT_TAGS', DEFAULT_CONFIG.projectTags),
-    inboxStyle: (process.env.INBOX_STYLE as VaultStructureConfig['inboxStyle']) || DEFAULT_CONFIG.inboxStyle,
   };
 }
 
@@ -53,7 +51,7 @@ let _projectPathCache: Map<string, string> | null = null;
 
 /**
  * Resolve a project slug to its folder path by scanning category directories.
- * Returns the folder path (e.g., 'Projects/Work/esp') or null if not found.
+ * Returns the folder path (e.g., 'Areas/Projects/Consulting/esp') or null if not found.
  */
 export async function resolveProjectPath(slug: string): Promise<string | null> {
   const config = getVaultConfig();
@@ -137,9 +135,9 @@ export function clearProjectPathCache(): void {
  * Build the vault path for a file within a project.
  * Places files in the project's files/ subfolder.
  *
- * @param projectFolder - Project folder path (e.g., 'Projects/Work/esp')
+ * @param projectFolder - Project folder path (e.g., 'Areas/Projects/Consulting/esp')
  * @param filename - The filename to save
- * @returns Full vault path (e.g., 'Projects/Work/esp/files/document.md')
+ * @returns Full vault path (e.g., 'Areas/Projects/Consulting/esp/files/document.md')
  */
 export function buildProjectFilePath(projectFolder: string, filename: string): string {
   return `${projectFolder}/files/${filename}`;
@@ -147,25 +145,20 @@ export function buildProjectFilePath(projectFolder: string, filename: string): s
 
 /**
  * Build the vault path for an inbox file (email attachment, etc.).
+ * Files are stored under Files/Inbox/ organized by contact and direction.
  *
  * @param contactName - Contact name slug (e.g., 'john-doe')
  * @param direction - Whether the file was sent or received
  * @param filename - The filename
- * @returns Full vault path (e.g., 'Inbox/john-doe/received/doc.pdf')
+ * @returns Full vault path (e.g., 'Files/Inbox/john-doe/received/doc.pdf')
  */
 export function buildInboxFilePath(
   contactName: string,
   direction: 'sent' | 'received',
   filename: string
 ): string {
-  const config = getVaultConfig();
   const slug = contactName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-
-  if (config.inboxStyle === 'by-contact') {
-    return `${VAULT_PATHS.inbox}/${slug}/${direction}/${filename}`;
-  }
-  // Flat style: just put in inbox root
-  return `${VAULT_PATHS.inbox}/${filename}`;
+  return `${VAULT_PATHS.files}/Inbox/${slug}/${direction}/${filename}`;
 }
 
 /**

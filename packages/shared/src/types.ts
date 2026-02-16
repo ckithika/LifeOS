@@ -51,14 +51,12 @@ export interface VaultProject {
 
 /** User-customizable vault structure configuration */
 export interface VaultStructureConfig {
-  /** Project category folders under Projects/ (default: ['Work','Personal','Archive']) */
+  /** Project category folders under Areas/Projects/ (default: ['Work','Personal','Archive']) */
   projectCategories: string[];
   /** Subfolders to create within each project folder (default: ['files']) */
   projectSubfolders: string[];
   /** Recommended frontmatter tags for project notes */
   projectTags: string[];
-  /** Inbox organization style: per-contact folders or flat (default: 'by-contact') */
-  inboxStyle: 'by-contact' | 'flat';
 }
 
 export interface DailyNote {
@@ -311,7 +309,7 @@ export function isAutoExecute(action: SuggestedActionType): boolean {
 
 /** Standard vault directory paths */
 export const VAULT_PATHS = {
-  projects: 'Projects',
+  projects: 'Areas/Projects',
   daily: 'Daily',
   files: 'Files',
   meetings: 'Files/Meetings',
@@ -319,7 +317,6 @@ export const VAULT_PATHS = {
   reports: 'Files/Reports',
   templates: 'Templates',
   areas: 'Areas',
-  inbox: 'Inbox',
   dashboard: 'Dashboard.md',
   syncLog: 'Daily/sync-log.md',
 } as const;

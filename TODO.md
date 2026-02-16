@@ -3,15 +3,18 @@
 ## v2 Roadmap — Must-Have 🔴
 
 ### Messaging Channels
-- [ ] **Telegram bot** — webhook → Cloud Run endpoint, bidirectional messaging with all LifeOS agents
-  - [ ] Create Telegram bot via @BotFather
-  - [ ] New package: `channel-telegram` (TypeScript, Cloud Run)
-  - [ ] Webhook receiver for incoming messages
-  - [ ] Route messages to appropriate agent (briefing, research, general)
-  - [ ] Send proactive notifications (daily briefing, meeting reminders, action items)
-  - [ ] Support inline commands: `/briefing`, `/tasks`, `/schedule`, `/research <topic>`
-  - [ ] Rich formatting (Markdown → Telegram HTML)
-  - [ ] File/image sending (Drive files, research reports)
+- [x] **Telegram bot** — webhook → Cloud Run endpoint, bidirectional messaging with all LifeOS agents
+  - [x] Create Telegram bot via @BotFather
+  - [x] New package: `channel-telegram` (TypeScript, Cloud Run, grammY)
+  - [x] Webhook receiver for incoming messages
+  - [x] Route messages to appropriate agent (briefing, research, general)
+  - [x] Send proactive notifications (daily briefing, meeting reminders, action items)
+  - [x] Support inline commands: `/briefing`, `/tasks`, `/schedule`, `/research <topic>`
+  - [x] Rich formatting (Markdown → Telegram HTML)
+  - [x] File/document sending via shared `sendTelegramDocument()`
+  - [x] Claude AI chat with full tool parity (29 tools — all MCP + agent tools)
+  - [x] Deploy to Cloud Run and set webhook
+  - [x] Test end-to-end with real bot token
 - [ ] **WhatsApp integration** — via WhatsApp Business Cloud API
   - [ ] Register WhatsApp Business account (free tier: 1,000 service conversations/mo)
   - [ ] New package: `channel-whatsapp` (TypeScript, Cloud Run)
@@ -30,11 +33,11 @@
   - [ ] Store embeddings in Cloud Storage or Firestore (persist across cold starts)
 
 ### Documentation & Community
-- [ ] **README.md** — compelling overview with architecture diagram, feature matrix, quick-start
+- [x] **README.md** — compelling narrative rewrite with cost transparency, competitive comparison
 - [ ] Architecture diagram (Mermaid or SVG) showing Cloud Run services, MCP flow, agent pipelines
-- [ ] **CLAUDE.md** — build commands, conventions, project context for Claude Code
-- [ ] **agents.md** — each background agent's purpose, triggers, and configuration
-- [ ] **CONTRIBUTING.md** — how to add new tools, agents, channels
+- [x] **CLAUDE.md** — build commands, conventions, project context for Claude Code
+- [x] **AGENTS.md** — each background agent's purpose, triggers, and configuration
+- [x] **CONTRIBUTING.md** — how to add new tools, agents, channels + bot enforcement
 - [ ] Screenshots / demo GIF of Claude.ai using LifeOS MCP tools
 - [ ] Landing page (GitHub Pages or simple site)
 
@@ -156,3 +159,16 @@
 - [x] Add root `/` endpoint to MCP servers (Claude.ai sends to `/`, not `/mcp`)
 - [x] Google OAuth token refresh and redeploy
 - [x] Update `.env.example` to remove `PORT=3000`
+- [x] Account management CLI (`npm run add-account/remove-account/list-accounts`)
+- [x] Vault restructure — folder-per-project migration + ongoing reorg CLI (`npm run vault`)
+- [x] Vault structure guide documentation
+- [x] PR template + bot-guard GitHub Action
+- [x] Fix TS2589 deep type instantiation in MCP server.tool() calls
+- [x] Git history scrub — redacted personal emails from all commits via `git-filter-repo`
+- [x] Vault restructure — moved Projects under Areas, removed Inbox
+- [x] Telegram bot package (`channel-telegram`) — grammY, commands, Claude AI chat, reminders
+- [x] Shared `sendTelegramMessage()` / `sendTelegramDocument()` utilities
+- [x] Agent-briefing Telegram notification integration
+- [x] Telegram bot deployed to Cloud Run with webhook
+- [x] Full tool parity in Telegram bot — 29 tools (all 27 MCP + 2 agent tools)
+- [x] Telegram setup documentation in README and setup guide

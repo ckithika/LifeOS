@@ -5,30 +5,31 @@ This guide explains how LifeOS organizes the Obsidian vault and how to customize
 ## Default Structure (PARA-inspired)
 
 ```
-Projects/
-├── Work/                        ← professional projects
-│   └── {slug}/
-│       ├── README.md            ← main project note (with frontmatter tags)
-│       ├── meeting-notes.md     ← chronological meeting log
-│       └── files/               ← project attachments
-├── Personal/                    ← personal projects, hobbies
-│   └── {slug}/
-│       └── README.md
-└── Archive/                     ← completed/inactive projects
-
-Inbox/                           ← email attachments, organized by contact
-└── {contact-name}/
-    ├── received/
-    └── sent/
-
-Areas/                           ← ongoing responsibilities (health, finances)
+Areas/                           ← everything lives under Areas
+├── Projects/                    ← project folders by category
+│   ├── Consulting/              ← client/consulting projects
+│   │   └── {slug}/
+│   │       ├── README.md        ← main project note (with frontmatter tags)
+│   │       ├── meeting-notes.md ← chronological meeting log
+│   │       └── files/           ← project attachments
+│   ├── Node Works/              ← company projects
+│   │   └── {slug}/
+│   │       └── README.md
+│   ├── Ideas/                   ← ideas and experiments
+│   ├── Open Source/             ← open source work
+│   └── Archive/                 ← completed/inactive projects
+├── Hobbies/                     ← creative, physical, intellectual, social
+├── Personal/                    ← finances, health, learning
 Daily/                           ← daily notes (YYYY-MM-DD.md)
-Resources/                       ← reference material, bookmarks
 Templates/                       ← note templates
-Files/                           ← system-generated files only
+Files/                           ← system-generated files
 ├── Meetings/                    ← transcripts and summaries
 ├── Research/                    ← research reports
-└── Reports/                     ← generated reports
+├── Reports/                     ← generated reports
+└── Inbox/                       ← email attachments by contact
+    └── {contact-name}/
+        ├── received/
+        └── sent/
 ```
 
 ## Customization
@@ -44,10 +45,9 @@ When setting up LifeOS with any AI coding assistant (Claude Code, Cursor, Codex,
 > Ask the user: "Describe your work and how you'd like to organize projects. For example: Are you a freelancer with multiple clients? An employee working on team projects? A student? Do you have side projects?"
 >
 > Based on their answer, generate a `VaultStructureConfig`:
-> - `projectCategories`: folder names under Projects/ (e.g., ["Clients", "Internal", "Archive"] for a freelancer)
+> - `projectCategories`: folder names under Areas/Projects/ (e.g., ["Clients", "Internal", "Archive"] for a freelancer)
 > - `projectSubfolders`: folders inside each project (e.g., ["files", "contracts", "deliverables"] for consulting)
 > - `projectTags`: frontmatter tags for cross-cutting classification
-> - `inboxStyle`: "by-contact" (default) or "flat"
 >
 > Output the config as environment variables for `.env`.
 
@@ -68,7 +68,6 @@ For users who skip customization, the defaults work well:
 VAULT_CATEGORIES='["Work","Personal","Archive"]'
 PROJECT_SUBFOLDERS='["files"]'
 PROJECT_TAGS='["status/active","status/paused","status/done","type/client","type/product","type/personal"]'
-INBOX_STYLE=by-contact
 ```
 
 ## Example Configs by Persona
@@ -79,7 +78,6 @@ INBOX_STYLE=by-contact
 VAULT_CATEGORIES='["Clients","Internal","Archive"]'
 PROJECT_SUBFOLDERS='["files","contracts","deliverables"]'
 PROJECT_TAGS='["status/active","status/paused","status/done","type/client","type/internal","priority/high","priority/low"]'
-INBOX_STYLE=by-contact
 ```
 
 ### Employee at a Company
@@ -88,7 +86,6 @@ INBOX_STYLE=by-contact
 VAULT_CATEGORIES='["Work","Side-Projects","Archive"]'
 PROJECT_SUBFOLDERS='["files"]'
 PROJECT_TAGS='["status/active","status/paused","status/done","team/engineering","team/product","priority/high"]'
-INBOX_STYLE=by-contact
 ```
 
 ### Student
@@ -97,7 +94,6 @@ INBOX_STYLE=by-contact
 VAULT_CATEGORIES='["Courses","Projects","Archive"]'
 PROJECT_SUBFOLDERS='["files","assignments"]'
 PROJECT_TAGS='["status/active","status/done","semester/spring-2026","type/course","type/research"]'
-INBOX_STYLE=flat
 ```
 
 ### Founder / Multi-Project
@@ -106,7 +102,6 @@ INBOX_STYLE=flat
 VAULT_CATEGORIES='["Products","Ventures","Consulting","Archive"]'
 PROJECT_SUBFOLDERS='["files","legal","financials"]'
 PROJECT_TAGS='["status/active","status/paused","status/done","type/product","type/service","stage/idea","stage/mvp","stage/growth"]'
-INBOX_STYLE=by-contact
 ```
 
 ## Tags Strategy
@@ -145,14 +140,12 @@ Users can add custom tags for their domain (e.g., `team/engineering`, `semester/
 
 ```typescript
 interface VaultStructureConfig {
-  /** Folder names under Projects/ */
+  /** Folder names under Areas/Projects/ */
   projectCategories: string[];      // default: ['Work','Personal','Archive']
   /** Subfolders inside each project folder */
   projectSubfolders: string[];      // default: ['files']
   /** Frontmatter tags for project notes */
   projectTags: string[];            // default: ['status/active','status/paused',...]
-  /** Inbox style: per-contact folders or flat */
-  inboxStyle: 'by-contact' | 'flat'; // default: 'by-contact'
 }
 ```
 
@@ -163,4 +156,3 @@ All values are set via environment variables and can be overridden without code 
 | `VAULT_CATEGORIES` | JSON array | `["Work","Personal","Archive"]` |
 | `PROJECT_SUBFOLDERS` | JSON array | `["files"]` |
 | `PROJECT_TAGS` | JSON array | `["status/active",...]` |
-| `INBOX_STYLE` | string | `by-contact` |
