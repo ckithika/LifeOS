@@ -5,7 +5,7 @@
  * transient error (429, 5xx, timeout, quota), falls back to Claude.
  */
 
-import { routeTools } from './tools.js';
+import { routeTools, TOOL_DEFS } from './tools.js';
 import { chatWithGemini } from './gemini.js';
 import { chatWithClaude } from './claude.js';
 
@@ -44,14 +44,15 @@ function shouldFallback(error: any): boolean {
 // ─── Main Chat Entry Point ────────────────────────────────────
 
 export async function chat(userMessage: string, chatId?: string): Promise<string> {
-  const tools = routeTools(userMessage);
+  const routedTools = routeTools(userMessage);
 
   // Check if Gemini is configured
   const hasGemini = !!process.env.GOOGLE_AI_API_KEY;
 
   if (hasGemini) {
     try {
-      return await chatWithGemini(userMessage, chatId, tools);
+      // Gemini Flash: use routed subset (better tool selection with fewer tools)
+      return await chatWithGemini(userMessage, chatId, routedTools);
     } catch (geminiError: any) {
       if (!shouldFallback(geminiError)) {
         throw geminiError;
@@ -60,9 +61,10 @@ export async function chat(userMessage: string, chatId?: string): Promise<string
       console.warn('[ai] Gemini failed, falling back to Claude:', geminiError.message);
 
       try {
-        return await chatWithClaude(userMessage, chatId, tools);
+        // Claude fallback: send all tools (Opus handles large tool sets well)
+        return await chatWithClaude(userMessage, chatId, TOOL_DEFS);
       } catch (claudeError: any) {
-        // Both providers failed — surface the primary (Gemini) error
+        // Both providers failed — surface both errors
         console.error('[ai] Claude fallback also failed:', claudeError.message);
         throw new Error(
           `Gemini: ${geminiError.message}\nClaude fallback: ${claudeError.message}`
@@ -71,6 +73,6 @@ export async function chat(userMessage: string, chatId?: string): Promise<string
     }
   }
 
-  // No Gemini key — use Claude directly
-  return await chatWithClaude(userMessage, chatId, tools);
+  // No Gemini key — use Claude directly with all tools
+  return await chatWithClaude(userMessage, chatId, TOOL_DEFS);
 }

@@ -6,6 +6,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import { getAccounts } from '@lifeos/shared';
 import { type ToolParam, toAnthropicTools, executeTool } from './tools.js';
 import {
   getConversation,
@@ -32,8 +33,22 @@ function getModel(): string {
 // ─── System Prompt ────────────────────────────────────────────
 
 export function getSystemPrompt(): string {
+  // Build dynamic account context from config
+  const accounts = getAccounts();
+  const accountLines = accounts.map(a => {
+    const roles: string[] = [];
+    if (a.isDefaultDraft) roles.push('default for email drafts');
+    if (a.isDefaultTasks) roles.push('default for tasks');
+    if (a.projects.includes('*')) roles.push('all projects');
+    else if (a.projects.length > 0) roles.push(`projects: ${a.projects.join(', ')}`);
+    return `- "${a.alias}" (${a.email}, ${a.type})${roles.length ? ' — ' + roles.join(', ') : ''}`;
+  }).join('\n');
+
+  const defaultDraft = accounts.find(a => a.isDefaultDraft)?.alias || accounts[0]?.alias || 'personal';
+  const defaultTasks = accounts.find(a => a.isDefaultTasks)?.alias || accounts[0]?.alias || 'personal';
+
   return `You are LifeOS, a personal AI assistant accessed via Telegram.
-You help Charles manage his day — calendar, tasks, projects, emails, notes, files, and contacts.
+You help manage calendar, tasks, projects, emails, notes, files, and contacts.
 
 You have FULL tool access to read AND write data. USE THEM proactively:
 - When asked about schedule/tasks/projects/contacts → fetch the real data
@@ -44,9 +59,15 @@ You have FULL tool access to read AND write data. USE THEM proactively:
 - Do NOT suggest slash commands — handle everything conversationally
 - Use contacts_lookup to find email addresses before creating invites
 
-For calendar events, use account "personal" by default unless the user specifies otherwise.
-For tasks, use the default tasks account.
-For email drafts, use the default draft account.
+Google accounts available:
+${accountLines}
+
+Use account "${defaultDraft}" for email drafts by default.
+Use account "${defaultTasks}" for tasks by default.
+For calendar events, use "personal" by default unless the user specifies otherwise.
+When the user mentions an account by name (e.g., "vivo"), use that account's alias in tool calls.
+All accounts have full access to Gmail, Calendar, Tasks, Drive, and Contacts.
+
 Timezone is EAT (UTC+3). Use +03:00 offsets for all times.
 
 Keep responses concise and mobile-friendly:
