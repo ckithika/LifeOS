@@ -1,0 +1,21 @@
+{
+  "name": "@lifeos/channel-shared",
+  "version": "0.1.0",
+  "description": "Shared AI, tools, and memory infrastructure for LifeOS messaging channels",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@lifeos/shared": "*",
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@google/genai": "^0.11.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
+  }
+}

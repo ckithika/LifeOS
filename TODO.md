@@ -15,14 +15,15 @@
   - [x] Claude AI chat with full tool parity (29 tools — all MCP + agent tools)
   - [x] Deploy to Cloud Run and set webhook
   - [x] Test end-to-end with real bot token
-- [ ] **WhatsApp integration** — via WhatsApp Business Cloud API
-  - [ ] Register WhatsApp Business account (free tier: 1,000 service conversations/mo)
-  - [ ] New package: `channel-whatsapp` (TypeScript, Cloud Run)
-  - [ ] Webhook receiver for incoming messages
-  - [ ] Message templates for proactive notifications (required by WhatsApp policy)
-  - [ ] 24-hour conversation window handling
-  - [ ] Media support (images, documents)
-  - [ ] Share `channel-telegram` message routing logic via shared module
+- [x] **WhatsApp integration** — via Baileys (personal number, QR code pairing)
+  - [x] New package: `channel-whatsapp` (TypeScript, Cloud Run, Baileys WebSocket)
+  - [x] Shared AI/tools extracted to `channel-shared` (Gemini-first, Claude fallback, 29 tools)
+  - [x] Self-chat only security model (never messages contacts)
+  - [x] GCS-backed session persistence (survives redeploys)
+  - [x] Keyword shortcuts (briefing, schedule, tasks, projects)
+  - [x] Calendar reminders via Cloud Scheduler
+  - [x] Markdown → WhatsApp format conversion
+  - [x] Always-on Cloud Run (min-instances=1, no CPU throttling)
 
 ### Vault Semantic Search
 - [ ] Add vector embeddings to `mcp-obsidian` server

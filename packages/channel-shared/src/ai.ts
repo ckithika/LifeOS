@@ -8,6 +8,7 @@
 import { routeTools, TOOL_DEFS } from './tools.js';
 import { chatWithGemini } from './gemini.js';
 import { chatWithClaude } from './claude.js';
+import type { ChatOptions } from './types.js';
 
 // ─── Fallback Logic ───────────────────────────────────────────
 
@@ -43,7 +44,8 @@ function shouldFallback(error: any): boolean {
 
 // ─── Main Chat Entry Point ────────────────────────────────────
 
-export async function chat(userMessage: string, chatId?: string): Promise<string> {
+export async function chat(userMessage: string, options: ChatOptions): Promise<string> {
+  const { chatId, channelName } = options;
   const routedTools = routeTools(userMessage);
 
   // Check if Gemini is configured
@@ -52,7 +54,7 @@ export async function chat(userMessage: string, chatId?: string): Promise<string
   if (hasGemini) {
     try {
       // Gemini Flash: use routed subset (better tool selection with fewer tools)
-      return await chatWithGemini(userMessage, chatId, routedTools);
+      return await chatWithGemini(userMessage, chatId, routedTools, channelName);
     } catch (geminiError: any) {
       if (!shouldFallback(geminiError)) {
         throw geminiError;
@@ -62,7 +64,7 @@ export async function chat(userMessage: string, chatId?: string): Promise<string
 
       try {
         // Claude fallback: send all tools (Opus handles large tool sets well)
-        return await chatWithClaude(userMessage, chatId, TOOL_DEFS);
+        return await chatWithClaude(userMessage, chatId, TOOL_DEFS, channelName);
       } catch (claudeError: any) {
         // Both providers failed — surface both errors
         console.error('[ai] Claude fallback also failed:', claudeError.message);
@@ -74,5 +76,5 @@ export async function chat(userMessage: string, chatId?: string): Promise<string
   }
 
   // No Gemini key — use Claude directly with all tools
-  return await chatWithClaude(userMessage, chatId, TOOL_DEFS);
+  return await chatWithClaude(userMessage, chatId, TOOL_DEFS, channelName);
 }

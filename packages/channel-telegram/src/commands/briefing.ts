@@ -3,7 +3,7 @@
  */
 
 import type { Context } from 'grammy';
-import { triggerBriefing } from '../services/agent-client.js';
+import { triggerBriefing } from '@lifeos/channel-shared';
 import { toTelegramHTML, truncateForTelegram } from '../formatting.js';
 
 export async function briefingCommand(ctx: Context): Promise<void> {

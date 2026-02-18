@@ -1048,7 +1048,7 @@ export async function executeTool(name: string, input: Record<string, unknown>):
     case 'write_note': {
       const { path, content, message } = input as any;
       try {
-        const sha = await writeFile(path, content, message || 'Telegram: update note');
+        const sha = await writeFile(path, content, message || 'LifeOS: update note');
         return JSON.stringify({ success: true, path, sha: sha.slice(0, 7) });
       } catch (e: any) {
         return JSON.stringify({ error: `write_note failed: ${e.message}` });

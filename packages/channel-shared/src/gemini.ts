@@ -1,8 +1,8 @@
 /**
- * Gemini AI provider for LifeOS Telegram bot.
+ * Gemini AI provider for LifeOS messaging channels.
  *
  * Uses @google/generative-ai SDK with function calling.
- * Primary provider — Gemini 3 Flash free tier (1,500 req/day).
+ * Primary provider — Gemini Flash free tier (1,500 req/day).
  */
 
 import {
@@ -46,6 +46,7 @@ export async function chatWithGemini(
   userMessage: string,
   chatId: string | undefined,
   tools: ToolParam[],
+  channelName = 'Telegram',
 ): Promise<string> {
   const ai = getClient();
   const model = getModel();
@@ -79,7 +80,7 @@ export async function chatWithGemini(
       model,
       contents,
       config: {
-        systemInstruction: getSystemPrompt(),
+        systemInstruction: getSystemPrompt(channelName),
         tools: [{ functionDeclarations }],
       },
     });

@@ -3,7 +3,7 @@
  */
 
 import type { Context } from 'grammy';
-import { triggerResearch } from '../services/agent-client.js';
+import { triggerResearch } from '@lifeos/channel-shared';
 import { toTelegramHTML, truncateForTelegram } from '../formatting.js';
 
 export async function researchCommand(ctx: Context): Promise<void> {

@@ -84,3 +84,8 @@ export {
   sendTelegramMessage,
   sendTelegramDocument,
 } from './telegram.js';
+
+// WhatsApp
+export {
+  sendWhatsAppMessage,
+} from './whatsapp.js';

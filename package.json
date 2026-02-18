@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "NODE_OPTIONS='--max-old-space-size=8192' npm run build -w packages/shared && NODE_OPTIONS='--max-old-space-size=8192' npm run build --workspaces --if-present",
+    "build": "NODE_OPTIONS='--max-old-space-size=8192' npm run build -w packages/shared && NODE_OPTIONS='--max-old-space-size=8192' npm run build -w packages/channel-shared && NODE_OPTIONS='--max-old-space-size=8192' npm run build --workspaces --if-present",
     "build:shared": "npm run build -w packages/shared",
     "dev:obsidian": "npx tsx packages/mcp-obsidian/src/index.ts",
     "dev:google": "npx tsx packages/mcp-google/src/index.ts",

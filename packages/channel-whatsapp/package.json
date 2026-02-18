@@ -1,0 +1,27 @@
+{
+  "name": "@lifeos/channel-whatsapp",
+  "version": "0.1.0",
+  "description": "WhatsApp bot channel: bidirectional messaging with LifeOS via Baileys (personal number)",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "npx tsx --watch src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@google-cloud/storage": "^7.0.0",
+    "@lifeos/channel-shared": "*",
+    "@lifeos/shared": "*",
+    "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "pino": "^9.0.0",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}

@@ -1,12 +1,11 @@
 /**
- * Telegram-specific type definitions
+ * WhatsApp-specific type definitions
  */
 
-export interface TelegramConfig {
-  botToken: string;
-  webhookSecret: string;
-  allowedUsers: number[];
-  chatId: string;
+export interface WhatsAppConfig {
+  sessionBucket?: string;
+  chatNumber: string;
+  allowedNumbers: string[];
 }
 
 export interface ReminderCheck {

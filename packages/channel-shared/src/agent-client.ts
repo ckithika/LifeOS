@@ -2,7 +2,7 @@
  * HTTP client for calling other LifeOS agents
  */
 
-import type { AgentResponse } from '../types.js';
+import type { AgentResponse } from './types.js';
 
 /**
  * Call an agent endpoint and return the text response.

@@ -3,7 +3,7 @@
  */
 
 import type { Context } from 'grammy';
-import { chat } from '../services/ai.js';
+import { chat } from '@lifeos/channel-shared';
 import { toTelegramHTML, truncateForTelegram } from '../formatting.js';
 
 export async function handleMessage(ctx: Context): Promise<void> {
@@ -12,7 +12,7 @@ export async function handleMessage(ctx: Context): Promise<void> {
 
   try {
     const chatId = ctx.chat?.id?.toString();
-    const response = await chat(text, chatId);
+    const response = await chat(text, { chatId, channelName: 'Telegram' });
     const html = toTelegramHTML(response);
     await ctx.reply(truncateForTelegram(html), { parse_mode: 'HTML' });
   } catch (error: any) {

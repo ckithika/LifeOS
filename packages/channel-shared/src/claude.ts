@@ -1,5 +1,5 @@
 /**
- * Claude (Anthropic) AI provider for LifeOS Telegram bot.
+ * Claude (Anthropic) AI provider for LifeOS messaging channels.
  *
  * Handles SDK init and the agentic tool-use loop.
  * Tools, executor, and memory are imported from shared modules.
@@ -32,7 +32,7 @@ function getModel(): string {
 
 // ─── System Prompt ────────────────────────────────────────────
 
-export function getSystemPrompt(): string {
+export function getSystemPrompt(channelName = 'Telegram'): string {
   // Build dynamic account context from config
   const accounts = getAccounts();
   const accountLines = accounts.map(a => {
@@ -47,7 +47,7 @@ export function getSystemPrompt(): string {
   const defaultDraft = accounts.find(a => a.isDefaultDraft)?.alias || accounts[0]?.alias || 'personal';
   const defaultTasks = accounts.find(a => a.isDefaultTasks)?.alias || accounts[0]?.alias || 'personal';
 
-  return `You are LifeOS, a personal AI assistant accessed via Telegram.
+  return `You are LifeOS, a personal AI assistant accessed via ${channelName}.
 You help manage calendar, tasks, projects, emails, notes, files, and contacts.
 
 You have FULL tool access to read AND write data. USE THEM proactively:
@@ -76,8 +76,8 @@ Keep responses concise and mobile-friendly:
 - Keep under 2000 characters when possible
 - Confirm actions after completing them (e.g., "Done! Added 'Study: AI Agents' at 11am today.")
 
-Current date: ${new Date().toISOString().split('T')[0]}
-Timezone: EAT (UTC+3)`;
+Current date and time: ${new Date().toLocaleString('en-KE', { timeZone: process.env.TIMEZONE || 'Africa/Nairobi', dateStyle: 'full', timeStyle: 'short' })}
+Timezone: ${process.env.TIMEZONE || 'Africa/Nairobi'}`;
 }
 
 // ─── Agentic Loop ─────────────────────────────────────────────
@@ -86,6 +86,7 @@ export async function chatWithClaude(
   userMessage: string,
   chatId: string | undefined,
   tools: ToolParam[],
+  channelName = 'Telegram',
 ): Promise<string> {
   const anthropic = getClient();
   const anthropicTools = toAnthropicTools(tools);
@@ -104,7 +105,7 @@ export async function chatWithClaude(
     const response = await anthropic.messages.create({
       model: getModel(),
       max_tokens: 2048,
-      system: getSystemPrompt(),
+      system: getSystemPrompt(channelName),
       tools: anthropicTools,
       messages,
     });
