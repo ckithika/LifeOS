@@ -43,8 +43,5 @@ npm-debug.log*
 # Docker
 .dockerignore
 
-# WhatsApp session (Baileys auth state — NEVER commit)
-auth_info/
-
 # GCP
 .gcloudignore

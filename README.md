@@ -248,7 +248,6 @@ See [docs/vault-structure-guide.md](docs/vault-structure-guide.md) for customiza
 - Vault restructure — projects under Areas/, folder-per-project migration
 
 **Planned**
-- WhatsApp integration — proactive notifications and conversational access
 - Vault semantic search — vector embeddings for conceptual search alongside keyword search
 - n8n self-hosted — free webhook relay replacing manual Granola triggers
 

@@ -39,7 +39,6 @@ SERVICES=(
   "agent-drive-org"
   "agent-research"
   "channel-telegram"
-  "channel-whatsapp"
 )
 
 # Map service name to package directory
@@ -69,17 +68,8 @@ deploy_service() {
   cp -a . "$tmpdir/"
   cp "${package_dir}/Dockerfile" "$tmpdir/Dockerfile"
 
-  # WhatsApp needs min-instances=1 for always-on WebSocket
   local min_instances=0
-  if [ "$service" = "channel-whatsapp" ]; then
-    min_instances=1
-  fi
-
-  # WhatsApp needs always-on CPU for WebSocket keepalive
   local cpu_throttling=""
-  if [ "$service" = "channel-whatsapp" ]; then
-    cpu_throttling="--no-cpu-throttling"
-  fi
 
   # Build and deploy using Cloud Build + Cloud Run
   gcloud run deploy "$service_name" \
@@ -178,15 +168,6 @@ deploy_schedulers() {
   if [ -n "$telegram_url" ]; then
     # Reminders: every 15 min during 6am-9pm EAT = 3am-6pm UTC
     create_scheduler "lifeos-telegram-reminders" "*/15 3-18 * * *" "${telegram_url}/reminders" "POST"
-  fi
-
-  local whatsapp_url
-  whatsapp_url=$(gcloud run services describe "lifeos-channel-whatsapp" \
-    --project "$PROJECT_ID" --region "$REGION" --format 'value(status.url)' 2>/dev/null || echo "")
-
-  if [ -n "$whatsapp_url" ]; then
-    # WhatsApp reminders: every 15 min during 6am-9pm EAT = 3am-6pm UTC
-    create_scheduler "lifeos-whatsapp-reminders" "*/15 3-18 * * *" "${whatsapp_url}/reminders" "POST"
   fi
 
   echo "✅ Scheduler jobs configured"

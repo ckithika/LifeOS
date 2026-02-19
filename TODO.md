@@ -15,16 +15,6 @@
   - [x] Claude AI chat with full tool parity (29 tools — all MCP + agent tools)
   - [x] Deploy to Cloud Run and set webhook
   - [x] Test end-to-end with real bot token
-- [x] **WhatsApp integration** — via Baileys (personal number, QR code pairing)
-  - [x] New package: `channel-whatsapp` (TypeScript, Cloud Run, Baileys WebSocket)
-  - [x] Shared AI/tools extracted to `channel-shared` (Gemini-first, Claude fallback, 29 tools)
-  - [x] Self-chat only security model (never messages contacts)
-  - [x] GCS-backed session persistence (survives redeploys)
-  - [x] Keyword shortcuts (briefing, schedule, tasks, projects)
-  - [x] Calendar reminders via Cloud Scheduler
-  - [x] Markdown → WhatsApp format conversion
-  - [x] Always-on Cloud Run (min-instances=1, no CPU throttling)
-
 ### Vault Semantic Search
 - [ ] Add vector embeddings to `mcp-obsidian` server
   - [ ] Evaluate embedding providers: Voyage AI (Anthropic partner), OpenAI, Cohere
@@ -90,7 +80,7 @@
 - [ ] Gmail push notifications (Google Pub/Sub) → instant email processing
 - [ ] Calendar change webhooks → conflict detection + auto-suggest resolution
 - [ ] VIP sender list → immediate notification on high-priority emails
-- [ ] Task deadline approaching → proactive reminder via Telegram/WhatsApp
+- [ ] Task deadline approaching → proactive reminder via Telegram
 
 ### Team Mode
 - [ ] Shared vault sections (read-only for collaborators)
@@ -100,7 +90,7 @@
 
 ### Voice Interaction
 - [ ] ElevenLabs or similar TTS for briefing audio delivery
-- [ ] Speech-to-text for voice commands via Telegram/WhatsApp voice messages
+- [ ] Speech-to-text for voice commands via Telegram voice messages
 - [ ] Wake word on companion devices
 
 ### Platform Expansion
