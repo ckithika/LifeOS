@@ -3,8 +3,11 @@
  */
 
 import type { Context } from 'grammy';
+import { InlineKeyboard } from 'grammy';
 import { triggerBriefing } from '@lifeos/channel-shared';
 import { toTelegramHTML, truncateForTelegram } from '../formatting.js';
+
+const refreshButton = new InlineKeyboard().text('🔄 Refresh', 'menu:briefing');
 
 export async function briefingCommand(ctx: Context): Promise<void> {
   await ctx.reply('⏳ Generating briefing...');
@@ -28,8 +31,11 @@ export async function briefingCommand(ctx: Context): Promise<void> {
       ? sections.join('\n\n')
       : `✅ Briefing generated for ${data.date || 'today'}`;
 
-    await ctx.reply(truncateForTelegram(toTelegramHTML(message)), { parse_mode: 'HTML' });
+    await ctx.reply(truncateForTelegram(toTelegramHTML(message)), {
+      parse_mode: 'HTML',
+      reply_markup: refreshButton,
+    });
   } catch {
-    await ctx.reply(`✅ Briefing generated.`);
+    await ctx.reply(`✅ Briefing generated.`, { reply_markup: refreshButton });
   }
 }

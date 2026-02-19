@@ -1,8 +1,9 @@
 /**
- * /tasks command — list active tasks
+ * /tasks command — list active tasks with Done buttons
  */
 
 import type { Context } from 'grammy';
+import { InlineKeyboard } from 'grammy';
 import { getAllAccountClients } from '@lifeos/shared';
 import type { TaskItem } from '@lifeos/shared';
 
@@ -44,7 +45,9 @@ export async function tasksCommand(ctx: Context): Promise<void> {
   }
 
   if (tasks.length === 0) {
-    await ctx.reply('✅ No active tasks!');
+    await ctx.reply('✅ No active tasks!', {
+      reply_markup: new InlineKeyboard().text('🔄 Refresh', 'menu:tasks'),
+    });
     return;
   }
 
@@ -56,11 +59,28 @@ export async function tasksCommand(ctx: Context): Promise<void> {
     return new Date(a.due).getTime() - new Date(b.due).getTime();
   });
 
-  const lines = tasks.slice(0, 15).map(t => {
+  const display = tasks.slice(0, 10);
+
+  const lines = display.map((t, i) => {
     const due = t.due ? ` (${new Date(t.due).toLocaleDateString('en-KE')})` : '';
-    return `⬜ ${t.title}${due} <i>[${t.account}]</i>`;
+    return `${i + 1}. ${t.title}${due} <i>[${t.account}]</i>`;
   });
 
+  const keyboard = new InlineKeyboard();
+  for (let i = 0; i < display.length; i += 2) {
+    const t1 = display[i];
+    keyboard.text(`✅ ${i + 1}`, `done:${t1.id}:${t1.account}`);
+    if (i + 1 < display.length) {
+      const t2 = display[i + 1];
+      keyboard.text(`✅ ${i + 2}`, `done:${t2.id}:${t2.account}`);
+    }
+    keyboard.row();
+  }
+  keyboard.text('🔄 Refresh', 'menu:tasks');
+
   const header = `<b>✅ Active Tasks (${tasks.length})</b>\n\n`;
-  await ctx.reply(header + lines.join('\n'), { parse_mode: 'HTML' });
+  await ctx.reply(header + lines.join('\n'), {
+    parse_mode: 'HTML',
+    reply_markup: keyboard,
+  });
 }

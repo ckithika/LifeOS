@@ -19,6 +19,17 @@ export function createBot(): Bot {
 
   const bot = new Bot(token);
 
+  // Register "/" command menu in Telegram (fire-and-forget)
+  bot.api.setMyCommands([
+    { command: 'menu', description: 'Main menu' },
+    { command: 'briefing', description: "Today's daily briefing" },
+    { command: 'tasks', description: 'Active tasks' },
+    { command: 'schedule', description: "Today's calendar" },
+    { command: 'projects', description: 'Active projects' },
+    { command: 'research', description: 'Research a topic' },
+    { command: 'help', description: 'Help & commands' },
+  ]).catch(err => console.warn('[bot] setMyCommands failed:', err.message));
+
   // Security middleware — reject unauthorized users
   bot.use(async (ctx, next) => {
     const userId = ctx.from?.id;
@@ -33,6 +44,7 @@ export function createBot(): Bot {
   // Commands
   bot.command('start', helpCommand);
   bot.command('help', helpCommand);
+  bot.command('menu', helpCommand);
   bot.command('briefing', briefingCommand);
   bot.command('tasks', tasksCommand);
   bot.command('schedule', scheduleCommand);

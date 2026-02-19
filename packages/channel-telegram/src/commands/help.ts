@@ -1,20 +1,28 @@
 /**
- * /help command — command reference
+ * /help, /start, /menu command — main menu with inline buttons
  */
 
 import type { Context } from 'grammy';
+import { InlineKeyboard } from 'grammy';
 
-const HELP_TEXT = `<b>LifeOS Bot Commands</b>
+const MENU_TEXT = `<b>LifeOS</b> — What would you like to do?
 
-/briefing — Today's daily briefing
-/tasks — Active tasks across accounts
-/schedule — Today's calendar
-/research &lt;topic&gt; — Quick research on a topic
-/projects — Active projects list
-/help — This message
+<i>Or just type a message and I'll chat with you using AI.</i>`;
 
-<i>Or just type a message and I'll chat with you using Claude AI.</i>`;
+export function buildMainMenu(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text('📋 Briefing', 'menu:briefing')
+    .text('✅ Tasks', 'menu:tasks')
+    .row()
+    .text('📅 Schedule', 'menu:schedule')
+    .text('📂 Projects', 'menu:projects')
+    .row()
+    .text('🔬 Research', 'menu:research');
+}
 
 export async function helpCommand(ctx: Context): Promise<void> {
-  await ctx.reply(HELP_TEXT, { parse_mode: 'HTML' });
+  await ctx.reply(MENU_TEXT, {
+    parse_mode: 'HTML',
+    reply_markup: buildMainMenu(),
+  });
 }
