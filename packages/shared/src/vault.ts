@@ -333,6 +333,8 @@ date: ${today}
 
 ## Notes
 
+## Tracking
+
 `;
 
   await writeFile(path, template, `lifeos: create daily note ${today}`);

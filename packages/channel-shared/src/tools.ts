@@ -5,7 +5,7 @@
  * to Anthropic or Gemini format via helper functions.
  */
 
-import { triggerBriefing, triggerResearch } from './agent-client.js';
+import { triggerBriefing, triggerWeeklyReview, triggerResearch } from './agent-client.js';
 import {
   // Config & Auth
   getAccounts,
@@ -447,6 +447,17 @@ export const TOOL_DEFS: ToolParam[] = [
         query: { type: 'string', description: 'The research topic or question' },
       },
       required: ['query'],
+    },
+  },
+  {
+    name: 'trigger_weekly_review',
+    description: 'Generate a weekly review summarizing the past 7 days (events, tasks, emails, goals)',
+    parameters: {
+      type: 'object',
+      properties: {
+        endDate: { type: 'string', description: 'End date of the review period (YYYY-MM-DD). Defaults to today.' },
+      },
+      required: [],
     },
   },
 ];
@@ -1155,6 +1166,11 @@ export async function executeTool(name: string, input: Record<string, unknown>):
       return result.error ? JSON.stringify({ error: result.error }) : result.text;
     }
 
+    case 'trigger_weekly_review': {
+      const result = await triggerWeeklyReview(input.endDate as string);
+      return result.error ? JSON.stringify({ error: result.error }) : result.text;
+    }
+
     default:
       return JSON.stringify({ error: `Unknown tool: ${name}` });
   }
@@ -1169,7 +1185,7 @@ export const TOOL_GROUPS: Record<string, string[]> = {
   drive: ['drive_list', 'drive_download', 'drive_upload', 'drive_copy_template', 'drive_create_folder', 'drive_organize', 'drive_delete'],
   contacts: ['contacts_search', 'contacts_lookup'],
   vault: ['read_note', 'write_note', 'search_vault', 'list_projects', 'create_project', 'list_files', 'daily_note', 'delete_note', 'move_note'],
-  agents: ['trigger_briefing', 'research'],
+  agents: ['trigger_briefing', 'research', 'trigger_weekly_review'],
 };
 
 const ROUTE_PATTERNS: Array<{ pattern: RegExp; groups: string[] }> = [

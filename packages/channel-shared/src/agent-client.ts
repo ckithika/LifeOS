@@ -43,6 +43,17 @@ export async function triggerBriefing(date?: string): Promise<AgentResponse> {
 }
 
 /**
+ * Trigger the weekly review agent.
+ */
+export async function triggerWeeklyReview(endDate?: string): Promise<AgentResponse> {
+  const url = process.env.AGENT_BRIEFING_URL;
+  if (!url) return { text: '', error: 'AGENT_BRIEFING_URL not configured' };
+
+  const body = endDate ? { endDate } : undefined;
+  return callAgent(url, '/weekly', body);
+}
+
+/**
  * Trigger the research agent.
  */
 export async function triggerResearch(

@@ -17,7 +17,12 @@ export function buildMainMenu(): InlineKeyboard {
     .text('📅 Schedule', 'menu:schedule')
     .text('📂 Projects', 'menu:projects')
     .row()
-    .text('🔬 Research', 'menu:research');
+    .text('🔬 Research', 'menu:research')
+    .text('🎯 Goals', 'menu:goals')
+    .row()
+    .text('📝 Note', 'menu:note')
+    .text('📊 Log', 'menu:log')
+    .text('💰 Expense', 'menu:expense');
 }
 
 export async function helpCommand(ctx: Context): Promise<void> {

@@ -39,5 +39,6 @@ export { chatWithGemini } from './gemini.js';
 export {
   callAgent,
   triggerBriefing,
+  triggerWeeklyReview,
   triggerResearch,
 } from './agent-client.js';

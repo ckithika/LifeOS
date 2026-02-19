@@ -10,8 +10,16 @@ import { tasksCommand } from './commands/tasks.js';
 import { scheduleCommand } from './commands/schedule.js';
 import { researchCommand } from './commands/research.js';
 import { projectsCommand } from './commands/projects.js';
+import { noteCommand } from './commands/note.js';
+import { logCommand } from './commands/log.js';
+import { goalsCommand } from './commands/goals.js';
+import { weeklyCommand } from './commands/weekly.js';
+import { projectCommand } from './commands/project.js';
+import { expenseCommand } from './commands/expense.js';
 import { handleMessage } from './handlers/message.js';
 import { handleCallback } from './handlers/callback.js';
+import { handleVoice } from './handlers/voice.js';
+import { handlePhoto } from './handlers/photo.js';
 
 export function createBot(): Bot {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -27,6 +35,12 @@ export function createBot(): Bot {
     { command: 'schedule', description: "Today's calendar" },
     { command: 'projects', description: 'Active projects' },
     { command: 'research', description: 'Research a topic' },
+    { command: 'note', description: 'Quick capture to daily note' },
+    { command: 'log', description: 'Track habits & mood' },
+    { command: 'goals', description: 'View & update goals' },
+    { command: 'weekly', description: 'Weekly review' },
+    { command: 'project', description: 'Project dashboard' },
+    { command: 'expense', description: 'Log an expense' },
     { command: 'help', description: 'Help & commands' },
   ]).catch(err => console.warn('[bot] setMyCommands failed:', err.message));
 
@@ -50,9 +64,21 @@ export function createBot(): Bot {
   bot.command('schedule', scheduleCommand);
   bot.command('research', researchCommand);
   bot.command('projects', projectsCommand);
+  bot.command('note', noteCommand);
+  bot.command('log', logCommand);
+  bot.command('goals', goalsCommand);
+  bot.command('weekly', weeklyCommand);
+  bot.command('project', projectCommand);
+  bot.command('expense', expenseCommand);
 
   // Callback queries (inline buttons)
   bot.on('callback_query:data', handleCallback);
+
+  // Voice messages → Gemini transcription
+  bot.on('message:voice', handleVoice);
+
+  // Photo messages → receipt scanning
+  bot.on('message:photo', handlePhoto);
 
   // Free-text messages → Claude AI
   bot.on('message:text', handleMessage);

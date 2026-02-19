@@ -8,6 +8,7 @@
 import { getAllAccountClients } from '@lifeos/shared';
 import { sendTelegramMessage } from '@lifeos/shared';
 import type { ReminderCheck, UpcomingEvent } from '../types.js';
+import { prepUpcomingMeetings } from './meeting-prep.js';
 
 const REMINDER_WINDOW_MINUTES = 15;
 
@@ -25,6 +26,13 @@ export async function checkAndNotify(): Promise<ReminderCheck> {
     const text = formatReminder(event);
     const sent = await sendTelegramMessage(chatId, text, { parse_mode: 'HTML' });
     if (sent) notified++;
+  }
+
+  // Also check for upcoming meetings that need prep (30 min window)
+  try {
+    await prepUpcomingMeetings();
+  } catch (error: any) {
+    console.warn('[reminders] Meeting prep error:', error.message);
   }
 
   return { events: upcoming, notified };

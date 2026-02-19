@@ -154,6 +154,12 @@ deploy_schedulers() {
   if [ -n "$briefing_url" ]; then
     # Briefing: daily at 6:30am EAT = 3:30am UTC
     create_scheduler "lifeos-briefing" "30 3 * * *" "${briefing_url}/briefing" "POST"
+
+    # Follow-up nudges: daily at 2pm EAT = 11am UTC
+    create_scheduler "lifeos-followup-check" "0 11 * * *" "${briefing_url}/follow-ups" "POST"
+
+    # Weekly review: Sunday 8pm EAT = 5pm UTC
+    create_scheduler "lifeos-weekly-review" "0 17 * * 0" "${briefing_url}/weekly" "POST"
   fi
 
   if [ -n "$drive_url" ]; then

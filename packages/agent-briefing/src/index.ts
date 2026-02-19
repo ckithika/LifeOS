@@ -23,6 +23,9 @@ import {
   sendTelegramMessage,
 } from '@lifeos/shared';
 import type { CalendarEvent, TaskItem } from '@lifeos/shared';
+import { triageEmails } from './triage.js';
+import { detectFollowUps, sendFollowUpNudges } from './follow-ups.js';
+import { generateWeeklyReview } from './weekly-review.js';
 
 const app = express();
 app.use(express.json());
@@ -52,6 +55,7 @@ interface BriefingSections {
   calendar: string;
   tasks: string;
   emails: string;
+  emailTriage: string;
   followUps: string;
   projects: string;
 }
@@ -63,6 +67,7 @@ async function generateBriefing(date: string): Promise<BriefingSections> {
     calendar: '',
     tasks: '',
     emails: '',
+    emailTriage: '',
     followUps: '',
     projects: '',
   };
@@ -191,6 +196,34 @@ async function generateBriefing(date: string): Promise<BriefingSections> {
     ? emailCounts.join('\n')
     : '- All caught up! 🎉';
 
+  // ── Email Triage ────────────────────────────────────────
+  const triageLines: string[] = [];
+  for (const [alias, clients] of allClients) {
+    try {
+      const triaged = await triageEmails(alias, clients);
+      const urgent = triaged.filter(e => e.category === 'urgent');
+      const actionNeeded = triaged.filter(e => e.category === 'action-needed');
+      const newsletters = triaged.filter(e => e.category === 'newsletter');
+
+      if (urgent.length > 0) {
+        triageLines.push(`- 🔴 **${urgent.length} urgent** (${alias})`);
+        urgent.forEach(e => triageLines.push(`  - ${e.subject} — from ${e.from}`));
+      }
+      if (actionNeeded.length > 0) {
+        triageLines.push(`- 🟡 **${actionNeeded.length} action needed** (${alias})`);
+      }
+      if (newsletters.length > 0) {
+        triageLines.push(`- 📰 ${newsletters.length} newsletters auto-archived (${alias})`);
+      }
+    } catch (error: any) {
+      console.warn(`[briefing] Triage error for ${alias}:`, error.message);
+    }
+  }
+
+  sections.emailTriage = triageLines.length > 0
+    ? triageLines.join('\n')
+    : '- No emails to triage';
+
   // ── Follow-ups: Unanswered emails (3+ days) ───────────
   const followUps: string[] = [];
 
@@ -266,6 +299,9 @@ ${sections.tasks}
 ## 📧 Emails
 ${sections.emails}
 
+## 📬 Email Triage
+${sections.emailTriage}
+
 ## ⏳ Follow-ups
 ${sections.followUps}
 
@@ -298,6 +334,43 @@ ${sections.projects}
 
   return sections;
 }
+
+// ─── Follow-ups Endpoint ─────────────────────────────────
+
+app.post('/follow-ups', async (_req, res) => {
+  console.log('[follow-ups] Checking for unanswered emails...');
+
+  try {
+    const allClients = getAllAccountClients();
+    const allFollowUps = [];
+
+    for (const [alias, clients] of allClients) {
+      const followUps = await detectFollowUps(alias, clients);
+      allFollowUps.push(...followUps);
+    }
+
+    await sendFollowUpNudges(allFollowUps);
+    res.json({ status: 'ok', count: allFollowUps.length });
+  } catch (error: any) {
+    console.error('[follow-ups] Failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─── Weekly Review Endpoint ──────────────────────────────
+
+app.post('/weekly', async (req, res) => {
+  const endDate = (req.body?.endDate as string) ?? undefined;
+  console.log(`[weekly] Generating weekly review${endDate ? ` ending ${endDate}` : ''}`);
+
+  try {
+    const result = await generateWeeklyReview(endDate);
+    res.json({ status: 'ok', ...result });
+  } catch (error: any) {
+    console.error('[weekly] Failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // ─── Start Server ────────────────────────────────────────
 

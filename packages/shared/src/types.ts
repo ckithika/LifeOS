@@ -242,6 +242,46 @@ export interface FollowUpItem {
   threadId: string;
 }
 
+// ─── Email Triage Types ─────────────────────────────────
+
+export type EmailCategory = 'urgent' | 'action-needed' | 'fyi' | 'newsletter';
+
+export interface TriagedEmail {
+  id: string;
+  threadId: string;
+  account: string;
+  from: string;
+  subject: string;
+  date: string;
+  category: EmailCategory;
+  snippet: string;
+}
+
+// ─── Goal Types ─────────────────────────────────────────
+
+export interface Goal {
+  title: string;
+  category: string;
+  completed: boolean;
+  keyResult?: KeyResult;
+}
+
+export interface KeyResult {
+  target: number;
+  current: number;
+  unit: string;
+}
+
+// ─── Expense Types ──────────────────────────────────────
+
+export interface Expense {
+  amount: number;
+  currency: string;
+  category: string;
+  vendor: string;
+  description: string;
+}
+
 // ─── Research Types ─────────────────────────────────────────
 
 export type ResearchType =

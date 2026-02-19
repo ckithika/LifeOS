@@ -73,6 +73,13 @@ export {
   isNewsletter,
 } from './project-paths.js';
 
+// Goals
+export {
+  parseGoals,
+  formatGoals,
+  formatGoalsSummary,
+} from './goals.js';
+
 // Contacts
 export {
   findContact,
