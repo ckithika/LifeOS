@@ -64,7 +64,7 @@ export const TOOL_DEFS: ToolParam[] = [
   },
   {
     name: 'calendar_create',
-    description: 'Create a calendar event with optional attendees. Routes to the correct account based on project.',
+    description: 'Create a calendar event. Routes to the correct account based on project. Only include attendees if the user wants to invite people — if they say "no invite" or don\'t mention attendees, omit the attendees field entirely.',
     parameters: {
       type: 'object',
       properties: {
@@ -560,18 +560,19 @@ export async function executeTool(name: string, input: Record<string, unknown>):
     case 'calendar_create': {
       const { summary, start, end, description, location, attendees, account: acctAlias, project } = input as any;
       const accountAlias = acctAlias || (project ? getCalendarAccount(project) : 'personal');
+      const hasAttendees = Array.isArray(attendees) && attendees.length > 0;
       try {
         const { calendar } = getGoogleClients(accountAlias);
         const event = await calendar.events.insert({
           calendarId: 'primary',
-          sendUpdates: 'all',
+          sendUpdates: hasAttendees ? 'all' : 'none',
           requestBody: {
             summary,
             description: description || undefined,
             location: location || undefined,
             start: { dateTime: start, timeZone: process.env.TIMEZONE || 'Africa/Nairobi' },
             end: { dateTime: end, timeZone: process.env.TIMEZONE || 'Africa/Nairobi' },
-            attendees: attendees?.map((email: string) => ({ email })),
+            attendees: hasAttendees ? attendees.map((email: string) => ({ email })) : undefined,
           },
         });
         return JSON.stringify({
