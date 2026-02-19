@@ -22,6 +22,7 @@ import {
   writeFile,
   appendToFile,
   VAULT_PATHS,
+  isVaultConfigured,
 } from '@lifeos/shared';
 
 const app = express();
@@ -160,13 +161,15 @@ async function dailyOrganize(): Promise<OrganizeResult[]> {
     results.push(result);
   }
 
-  // Log results to vault
-  const logEntry = `\n## Drive Organize — ${new Date().toISOString()}\n\n` +
-    results.map((r) =>
-      `**${r.account}**: Scanned ${r.filesScanned}, classified ${r.filesClassified}, moved ${r.filesMoved}${r.errors.length > 0 ? ` (${r.errors.length} errors)` : ''}`
-    ).join('\n') + '\n';
+  // Log results to vault (when configured)
+  if (isVaultConfigured()) {
+    const logEntry = `\n## Drive Organize — ${new Date().toISOString()}\n\n` +
+      results.map((r) =>
+        `**${r.account}**: Scanned ${r.filesScanned}, classified ${r.filesClassified}, moved ${r.filesMoved}${r.errors.length > 0 ? ` (${r.errors.length} errors)` : ''}`
+      ).join('\n') + '\n';
 
-  await appendToFile(VAULT_PATHS.syncLog, logEntry, 'Drive organize log');
+    await appendToFile(VAULT_PATHS.syncLog, logEntry, 'Drive organize log');
+  }
 
   return results;
 }
@@ -246,8 +249,9 @@ async function deepCleanup(accountAlias: string): Promise<CleanupReport> {
     report.suggestions.push(`${report.largeFiles.length} files over 50MB (${(totalLarge / 1024 / 1024 / 1024).toFixed(1)} GB total)`);
   }
 
-  // Save report to vault
-  const reportContent = `---
+  // Save report to vault (when configured)
+  if (isVaultConfigured()) {
+    const reportContent = `---
 type: drive-cleanup-report
 account: ${accountAlias}
 date: ${new Date().toISOString()}
@@ -270,13 +274,14 @@ ${report.suggestions.map((s) => `- ${s}`).join('\n') || '- Drive looks clean!'}
 ⚠️ **No files have been moved or deleted.** Review this report and approve actions before proceeding.
 `;
 
-  await writeFile(
-    `Files/Reports/drive-cleanup-${accountAlias}-${new Date().toISOString().split('T')[0]}.md`,
-    reportContent,
-    `Drive cleanup report: ${accountAlias}`
-  );
+    await writeFile(
+      `Files/Reports/drive-cleanup-${accountAlias}-${new Date().toISOString().split('T')[0]}.md`,
+      reportContent,
+      `Drive cleanup report: ${accountAlias}`
+    );
+  }
 
-  console.log(`[drive-org] Cleanup report saved for ${accountAlias}: ${report.totalFiles} files scanned`);
+  console.log(`[drive-org] Cleanup report for ${accountAlias}: ${report.totalFiles} files scanned`);
   return report;
 }
 

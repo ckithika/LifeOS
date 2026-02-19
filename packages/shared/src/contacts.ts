@@ -15,7 +15,7 @@
 import { Contact } from './types.js';
 import { getAccounts } from './config.js';
 import { getGoogleClients } from './google-auth.js';
-import { searchVault, readFile, listDirectory } from './vault.js';
+import { searchVault, readFile, listDirectory, isVaultConfigured } from './vault.js';
 
 /**
  * Search for a contact by name across all sources.
@@ -186,6 +186,8 @@ async function searchGmailHeaders(name: string): Promise<Contact[]> {
  * Search vault project notes for contacts mentioned in Key Contacts sections.
  */
 async function searchVaultContacts(name: string): Promise<Contact[]> {
+  if (!isVaultConfigured()) return [];
+
   const contacts: Contact[] = [];
 
   try {

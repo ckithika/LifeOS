@@ -58,9 +58,6 @@ echo ""
 echo "Required environment variables:"
 
 REQUIRED_VARS=(
-  "GITHUB_PAT"
-  "GITHUB_REPO_OWNER"
-  "GITHUB_REPO_NAME"
   "GOOGLE_CLIENT_ID"
   "GOOGLE_CLIENT_SECRET"
   "ANTHROPIC_API_KEY"
@@ -74,6 +71,26 @@ for var in "${REQUIRED_VARS[@]}"; do
     pass "${var} is set"
   fi
 done
+
+# ─── 2b. Optional vault env vars (warn if missing) ───────────────
+echo ""
+echo "Obsidian vault (optional):"
+
+VAULT_VARS=("GITHUB_PAT" "GITHUB_REPO_OWNER" "GITHUB_REPO_NAME")
+VAULT_CONFIGURED=true
+
+for var in "${VAULT_VARS[@]}"; do
+  if [ -z "${!var:-}" ]; then
+    warn "${var} is not set" "Vault features will be disabled. Set to enable Obsidian vault."
+    VAULT_CONFIGURED=false
+  else
+    pass "${var} is set"
+  fi
+done
+
+if [ "$VAULT_CONFIGURED" = false ]; then
+  warn "Obsidian vault is not configured — vault-dependent features will be skipped"
+fi
 
 # ─── 3. Check GOOGLE_TOKEN_PERSONAL is not a TODO placeholder ──
 echo ""

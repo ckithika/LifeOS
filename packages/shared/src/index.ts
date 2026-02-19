@@ -43,6 +43,7 @@ export {
 
 // Vault (GitHub)
 export {
+  isVaultConfigured,
   readFile,
   writeFile,
   appendToFile,

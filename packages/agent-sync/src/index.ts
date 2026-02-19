@@ -30,6 +30,7 @@ import {
   getAccounts,
   detectProject,
   loadConfig,
+  isVaultConfigured,
 } from '@lifeos/shared';
 
 const app = express();
@@ -44,6 +45,12 @@ app.get('/health', (_req, res) => {
 // ─── Sync Endpoint ───────────────────────────────────────
 
 app.post('/sync', async (req, res) => {
+  if (!isVaultConfigured()) {
+    console.log('[sync] Vault not configured — skipping sync');
+    res.json({ status: 'skipped', reason: 'vault not configured' });
+    return;
+  }
+
   const mode = (req.query.mode as string) ?? 'full';
   console.log(`[sync] Starting ${mode} sync at ${new Date().toISOString()}`);
 

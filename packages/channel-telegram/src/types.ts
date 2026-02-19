@@ -15,6 +15,7 @@ export interface ReminderCheck {
 }
 
 export interface UpcomingEvent {
+  id: string;
   summary: string;
   start: string;
   minutesUntil: number;

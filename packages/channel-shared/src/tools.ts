@@ -15,6 +15,7 @@ import {
   getDraftAccount,
   getGoogleClients,
   getFileSizeLimit,
+  isVaultConfigured,
   // Vault
   readFile,
   writeFile,
@@ -461,6 +462,19 @@ export const TOOL_DEFS: ToolParam[] = [
     },
   },
 ];
+
+// ─── Vault-Aware Filtering ─────────────────────────────────────
+
+const VAULT_TOOL_NAMES = new Set([
+  'read_note', 'write_note', 'search_vault', 'list_projects',
+  'create_project', 'list_files', 'daily_note', 'delete_note', 'move_note',
+]);
+
+/** Return tool definitions, excluding vault tools when vault is not configured. */
+export function getActiveToolDefs(): ToolParam[] {
+  if (isVaultConfigured()) return TOOL_DEFS;
+  return TOOL_DEFS.filter(t => !VAULT_TOOL_NAMES.has(t.name));
+}
 
 // ─── Format Converters ────────────────────────────────────────
 
@@ -1221,6 +1235,7 @@ const ROUTE_PATTERNS: Array<{ pattern: RegExp; groups: string[] }> = [
 /** Route message to relevant tools (typically 3-8 instead of 29) */
 export function routeTools(message: string): ToolParam[] {
   const matchedGroups = new Set<string>();
+  const vaultAvailable = isVaultConfigured();
 
   for (const route of ROUTE_PATTERNS) {
     if (route.pattern.test(message)) {
@@ -1234,8 +1249,11 @@ export function routeTools(message: string): ToolParam[] {
   if (matchedGroups.size === 0) {
     matchedGroups.add('calendar');
     matchedGroups.add('tasks');
-    matchedGroups.add('vault');
+    if (vaultAvailable) matchedGroups.add('vault');
   }
+
+  // Strip vault group when vault is not configured
+  if (!vaultAvailable) matchedGroups.delete('vault');
 
   const toolNames = new Set<string>();
   for (const group of matchedGroups) {

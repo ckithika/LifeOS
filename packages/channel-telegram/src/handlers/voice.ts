@@ -7,7 +7,7 @@
 
 import type { Context } from 'grammy';
 import { GoogleGenAI } from '@google/genai';
-import { getDailyNote, writeFile } from '@lifeos/shared';
+import { getDailyNote, writeFile, isVaultConfigured } from '@lifeos/shared';
 
 export async function handleVoice(ctx: Context): Promise<void> {
   const voice = ctx.message?.voice;
@@ -67,39 +67,41 @@ If there are no action items, write "None" under Action Items.`,
       .map((p: any) => p.text)
       .join('') || 'Could not transcribe.';
 
-    // Save to vault
-    const now = new Date();
-    const date = now.toISOString().split('T')[0];
-    const time = now.toLocaleTimeString('en-KE', {
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Africa/Nairobi',
-    }).replace(':', '');
+    // Save to vault (only when configured)
+    if (isVaultConfigured()) {
+      const now = new Date();
+      const date = now.toISOString().split('T')[0];
+      const time = now.toLocaleTimeString('en-KE', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Africa/Nairobi',
+      }).replace(':', '');
 
-    const vaultPath = `Files/voice-notes/${date}-${time}.md`;
-    const noteContent = `---
+      const vaultPath = `Files/voice-notes/${date}-${time}.md`;
+      const noteContent = `---
 date: ${date}
 type: voice-note
 ---
 
 ${transcription}
 `;
-    await writeFile(vaultPath, noteContent, `lifeos: voice note ${date}`);
+      await writeFile(vaultPath, noteContent, `lifeos: voice note ${date}`);
 
-    // Append reference to daily note
-    const dailyNote = await getDailyNote(date);
-    const ref = `- ${time.slice(0, 2)}:${time.slice(2)} — Voice note: [[${vaultPath}]]`;
+      // Append reference to daily note
+      const dailyNote = await getDailyNote(date);
+      const ref = `- ${time.slice(0, 2)}:${time.slice(2)} — Voice note: [[${vaultPath}]]`;
 
-    const sectionHeader = '## Notes';
-    const sectionIndex = dailyNote.content.indexOf(sectionHeader);
-    if (sectionIndex !== -1) {
-      const afterSection = dailyNote.content.indexOf('\n## ', sectionIndex + sectionHeader.length);
-      const insertPoint = afterSection !== -1 ? afterSection : dailyNote.content.length;
-      const newContent =
-        dailyNote.content.slice(0, insertPoint).trimEnd() +
-        '\n' + ref + '\n' +
-        (afterSection !== -1 ? '\n' + dailyNote.content.slice(insertPoint).trimStart() : '');
-      await writeFile(dailyNote.path, newContent, `lifeos: voice note ref ${date}`);
+      const sectionHeader = '## Notes';
+      const sectionIndex = dailyNote.content.indexOf(sectionHeader);
+      if (sectionIndex !== -1) {
+        const afterSection = dailyNote.content.indexOf('\n## ', sectionIndex + sectionHeader.length);
+        const insertPoint = afterSection !== -1 ? afterSection : dailyNote.content.length;
+        const newContent =
+          dailyNote.content.slice(0, insertPoint).trimEnd() +
+          '\n' + ref + '\n' +
+          (afterSection !== -1 ? '\n' + dailyNote.content.slice(insertPoint).trimStart() : '');
+        await writeFile(dailyNote.path, newContent, `lifeos: voice note ref ${date}`);
+      }
     }
 
     // Reply with transcription (truncated for Telegram)

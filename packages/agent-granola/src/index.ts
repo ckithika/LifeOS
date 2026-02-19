@@ -30,6 +30,7 @@ import {
   resolveProjectPathCached,
   buildProjectMeetingNotesPath,
   VAULT_PATHS,
+  isVaultConfigured,
 } from '@lifeos/shared';
 import type { MeetingData, SuggestedAction } from '@lifeos/shared';
 import { extractActions } from './extract-actions.js';
@@ -129,10 +130,12 @@ async function processMeeting(meeting: MeetingData): Promise<ProcessingResults> 
     .replace(/^-|-$/g, '')
     .slice(0, 50);
 
-  // ── Step 1: Save transcript ──────────────────────────────
-  try {
-    const transcriptPath = `Files/Meetings/${dateSlug}-${titleSlug}-transcript.md`;
-    const transcriptContent = `---
+  // ── Step 1–3: Vault writes (transcript, summary, project note) ──
+  if (isVaultConfigured()) {
+    // Step 1: Save transcript
+    try {
+      const transcriptPath = `Files/Meetings/${dateSlug}-${titleSlug}-transcript.md`;
+      const transcriptContent = `---
 title: "${meeting.title}"
 date: ${meeting.date}
 attendees: [${meeting.attendees.map(a => `"${a}"`).join(', ')}]
@@ -148,17 +151,17 @@ source: ${meeting.source}
 
 ${meeting.transcript}
 `;
-    await writeFile(transcriptPath, transcriptContent, `Transcript: ${meeting.title}`);
-    results.transcriptSaved = true;
-    console.log(`[granola] Transcript saved: ${transcriptPath}`);
-  } catch (error) {
-    console.error('[granola] Failed to save transcript:', error);
-  }
+      await writeFile(transcriptPath, transcriptContent, `Transcript: ${meeting.title}`);
+      results.transcriptSaved = true;
+      console.log(`[granola] Transcript saved: ${transcriptPath}`);
+    } catch (error) {
+      console.error('[granola] Failed to save transcript:', error);
+    }
 
-  // ── Step 2: Save summary ─────────────────────────────────
-  try {
-    const summaryPath = `Files/Meetings/${dateSlug}-${titleSlug}-summary.md`;
-    const summaryContent = `---
+    // Step 2: Save summary
+    try {
+      const summaryPath = `Files/Meetings/${dateSlug}-${titleSlug}-summary.md`;
+      const summaryContent = `---
 title: "${meeting.title}"
 date: ${meeting.date}
 attendees: [${meeting.attendees.map(a => `"${a}"`).join(', ')}]
@@ -174,44 +177,44 @@ type: summary
 
 ${meeting.summary}
 `;
-    await writeFile(summaryPath, summaryContent, `Summary: ${meeting.title}`);
-    results.summarySaved = true;
-    console.log(`[granola] Summary saved: ${summaryPath}`);
-  } catch (error) {
-    console.error('[granola] Failed to save summary:', error);
-  }
-
-  // ── Step 3: Update project note ──────────────────────────
-  if (project) {
-    try {
-      // Resolve folder-per-project path; fall back to flat file for backwards compat
-      const folderPath = await resolveProjectPathCached(project);
-      const projectPath = folderPath
-        ? `${folderPath}/README.md`
-        : `${VAULT_PATHS.projects}/${project}.md`;
-
-      const existing = await readFile(projectPath);
-
-      // Use absolute vault paths (wikilink-friendly) instead of relative links
-      const transcriptLink = `Files/Meetings/${dateSlug}-${titleSlug}-transcript.md`;
-      const summaryLink = `Files/Meetings/${dateSlug}-${titleSlug}-summary.md`;
-      const meetingRef = `\n- **${meeting.date.split('T')[0]}** — ${meeting.title} ([[${transcriptLink}|transcript]] | [[${summaryLink}|summary]])`;
-
-      if (existing) {
-        await appendToFile(projectPath, meetingRef, `Meeting: ${meeting.title}`);
-        results.projectUpdated = project;
-        console.log(`[granola] Project note updated: ${projectPath}`);
-      }
-
-      // Also append to the project's meeting-notes.md if using folder structure
-      if (folderPath) {
-        const meetingNotesPath = buildProjectMeetingNotesPath(folderPath);
-        await appendToFile(meetingNotesPath, meetingRef, `Meeting: ${meeting.title}`);
-        console.log(`[granola] Meeting notes updated: ${meetingNotesPath}`);
-      }
+      await writeFile(summaryPath, summaryContent, `Summary: ${meeting.title}`);
+      results.summarySaved = true;
+      console.log(`[granola] Summary saved: ${summaryPath}`);
     } catch (error) {
-      console.error('[granola] Failed to update project note:', error);
+      console.error('[granola] Failed to save summary:', error);
     }
+
+    // Step 3: Update project note
+    if (project) {
+      try {
+        const folderPath = await resolveProjectPathCached(project);
+        const projectPath = folderPath
+          ? `${folderPath}/README.md`
+          : `${VAULT_PATHS.projects}/${project}.md`;
+
+        const existing = await readFile(projectPath);
+
+        const transcriptLink = `Files/Meetings/${dateSlug}-${titleSlug}-transcript.md`;
+        const summaryLink = `Files/Meetings/${dateSlug}-${titleSlug}-summary.md`;
+        const meetingRef = `\n- **${meeting.date.split('T')[0]}** — ${meeting.title} ([[${transcriptLink}|transcript]] | [[${summaryLink}|summary]])`;
+
+        if (existing) {
+          await appendToFile(projectPath, meetingRef, `Meeting: ${meeting.title}`);
+          results.projectUpdated = project;
+          console.log(`[granola] Project note updated: ${projectPath}`);
+        }
+
+        if (folderPath) {
+          const meetingNotesPath = buildProjectMeetingNotesPath(folderPath);
+          await appendToFile(meetingNotesPath, meetingRef, `Meeting: ${meeting.title}`);
+          console.log(`[granola] Meeting notes updated: ${meetingNotesPath}`);
+        }
+      } catch (error) {
+        console.error('[granola] Failed to update project note:', error);
+      }
+    }
+  } else {
+    console.log('[granola] Vault not configured — skipping vault writes');
   }
 
   // ── Step 4: Extract and create tasks ─────────────────────
@@ -250,8 +253,8 @@ ${meeting.summary}
     const suggested = await generateSuggestedActions(meeting, project, results);
     results.suggestedActions = suggested.length;
 
-    // Append suggested actions to daily note
-    if (suggested.length > 0) {
+    // Append suggested actions to daily note (vault required)
+    if (suggested.length > 0 && isVaultConfigured()) {
       await appendSuggestedActionsToDaily(suggested, dateSlug);
     }
   } catch (error) {

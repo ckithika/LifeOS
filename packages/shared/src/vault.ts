@@ -12,6 +12,18 @@ import { Octokit } from '@octokit/rest';
 import { VaultFile, VaultProject, DailyNote, VAULT_PATHS } from './types.js';
 import { getVaultConfig, clearProjectPathCache } from './project-paths.js';
 
+/**
+ * Check whether the Obsidian vault (GitHub-backed) is configured.
+ * Returns true only when all three required env vars are set.
+ */
+export function isVaultConfigured(): boolean {
+  return !!(
+    process.env.GITHUB_PAT &&
+    process.env.GITHUB_REPO_OWNER &&
+    process.env.GITHUB_REPO_NAME
+  );
+}
+
 let _octokit: Octokit | null = null;
 
 function getOctokit(): Octokit {

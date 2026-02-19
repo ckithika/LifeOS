@@ -3,6 +3,8 @@
  *
  * Checks upcoming calendar events and sends Telegram alerts
  * for meetings starting in the next 15 minutes.
+ * Uses an in-memory cache to avoid duplicate notifications
+ * (resets on cold start — acceptable for Cloud Run).
  */
 
 import { getAllAccountClients } from '@lifeos/shared';
@@ -12,6 +14,17 @@ import { prepUpcomingMeetings } from './meeting-prep.js';
 
 const REMINDER_WINDOW_MINUTES = 15;
 
+/** Cache of already-notified events: "eventId|startTime" → timestamp sent */
+const notifiedCache = new Map<string, number>();
+
+/** Evict entries older than 30 minutes to prevent unbounded growth. */
+function evictStaleEntries(): void {
+  const cutoff = Date.now() - 30 * 60 * 1000;
+  for (const [key, sentAt] of notifiedCache) {
+    if (sentAt < cutoff) notifiedCache.delete(key);
+  }
+}
+
 /**
  * Check upcoming events and send reminders for those starting soon.
  */
@@ -19,13 +32,21 @@ export async function checkAndNotify(): Promise<ReminderCheck> {
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (!chatId) return { events: [], notified: 0 };
 
+  evictStaleEntries();
+
   const upcoming = await getUpcomingEvents();
   let notified = 0;
 
   for (const event of upcoming) {
+    const cacheKey = `${event.id}|${event.start}`;
+    if (notifiedCache.has(cacheKey)) continue;
+
     const text = formatReminder(event);
     const sent = await sendTelegramMessage(chatId, text, { parse_mode: 'HTML' });
-    if (sent) notified++;
+    if (sent) {
+      notifiedCache.set(cacheKey, Date.now());
+      notified++;
+    }
   }
 
   // Also check for upcoming meetings that need prep (30 min window)
@@ -68,6 +89,7 @@ async function getUpcomingEvents(): Promise<UpcomingEvent[]> {
         const minutesUntil = Math.round((startTime.getTime() - now.getTime()) / 60000);
 
         events.push({
+          id: event.id ?? `${alias}-${start}`,
           summary: event.summary ?? '(No title)',
           start,
           minutesUntil,

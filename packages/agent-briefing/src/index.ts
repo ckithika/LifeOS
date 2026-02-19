@@ -21,6 +21,7 @@ import {
   writeDailyNote,
   listProjects,
   sendTelegramMessage,
+  isVaultConfigured,
 } from '@lifeos/shared';
 import type { CalendarEvent, TaskItem } from '@lifeos/shared';
 import { triageEmails } from './triage.js';
@@ -277,14 +278,18 @@ async function generateBriefing(date: string): Promise<BriefingSections> {
     : '- No pending follow-ups';
 
   // ── Projects: Active project status ────────────────────
-  try {
-    const projects = await listProjects();
-    const activeProjects = projects.filter((p) => p.status === 'active');
-    sections.projects = activeProjects.length > 0
-      ? activeProjects.map((p) => `- [[${p.path}|${p.title}]] [${p.status}]`).join('\n')
-      : '- No active projects';
-  } catch {
-    sections.projects = '- Could not load projects';
+  if (isVaultConfigured()) {
+    try {
+      const projects = await listProjects();
+      const activeProjects = projects.filter((p) => p.status === 'active');
+      sections.projects = activeProjects.length > 0
+        ? activeProjects.map((p) => `- [[${p.path}|${p.title}]] [${p.status}]`).join('\n')
+        : '- No active projects';
+    } catch {
+      sections.projects = '- Could not load projects';
+    }
+  } else {
+    sections.projects = '- Vault not configured';
   }
 
   // ── Assemble daily note ────────────────────────────────
@@ -312,8 +317,12 @@ ${sections.projects}
 *Generated at ${new Date().toLocaleTimeString('en-KE')} EAT*
 `;
 
-  await writeDailyNote(content, date);
-  console.log(`[briefing] Daily note written for ${date}`);
+  if (isVaultConfigured()) {
+    await writeDailyNote(content, date);
+    console.log(`[briefing] Daily note written for ${date}`);
+  } else {
+    console.log(`[briefing] Vault not configured — skipping daily note write`);
+  }
 
   // Send briefing summary to Telegram if configured
   const chatId = process.env.TELEGRAM_CHAT_ID;

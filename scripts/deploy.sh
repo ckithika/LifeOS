@@ -233,8 +233,13 @@ main() {
     # Deploy specific service
     deploy_service "$1"
   else
-    # Deploy all services
+    # Deploy all services (skip mcp-obsidian when vault is not configured)
     for service in "${SERVICES[@]}"; do
+      if [ "$service" = "mcp-obsidian" ] && [ -z "${GITHUB_PAT:-}" ]; then
+        echo ""
+        echo "  ⏭️  Skipping mcp-obsidian (vault not configured — GITHUB_PAT not set)"
+        continue
+      fi
       deploy_service "$service"
     done
 

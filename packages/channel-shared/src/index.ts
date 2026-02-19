@@ -19,6 +19,7 @@ export {
   TOOL_GROUPS,
   executeTool,
   routeTools,
+  getActiveToolDefs,
   toAnthropicTools,
   toGeminiTools,
 } from './tools.js';

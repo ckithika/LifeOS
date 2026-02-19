@@ -5,7 +5,7 @@
  * transient error (429, 5xx, timeout, quota), falls back to Claude.
  */
 
-import { routeTools, TOOL_DEFS } from './tools.js';
+import { routeTools, getActiveToolDefs } from './tools.js';
 import { chatWithGemini } from './gemini.js';
 import { chatWithClaude } from './claude.js';
 import type { ChatOptions } from './types.js';
@@ -63,8 +63,8 @@ export async function chat(userMessage: string, options: ChatOptions): Promise<s
       console.warn('[ai] Gemini failed, falling back to Claude:', geminiError.message);
 
       try {
-        // Claude fallback: send all tools (Opus handles large tool sets well)
-        return await chatWithClaude(userMessage, chatId, TOOL_DEFS, channelName);
+        // Claude fallback: send all active tools (Opus handles large tool sets well)
+        return await chatWithClaude(userMessage, chatId, getActiveToolDefs(), channelName);
       } catch (claudeError: any) {
         // Both providers failed — surface both errors
         console.error('[ai] Claude fallback also failed:', claudeError.message);
@@ -75,6 +75,6 @@ export async function chat(userMessage: string, options: ChatOptions): Promise<s
     }
   }
 
-  // No Gemini key — use Claude directly with all tools
-  return await chatWithClaude(userMessage, chatId, TOOL_DEFS, channelName);
+  // No Gemini key — use Claude directly with all active tools
+  return await chatWithClaude(userMessage, chatId, getActiveToolDefs(), channelName);
 }

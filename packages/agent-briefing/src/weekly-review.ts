@@ -14,6 +14,7 @@ import {
   sendTelegramMessage,
   parseGoals,
   formatGoalsSummary,
+  isVaultConfigured,
 } from '@lifeos/shared';
 
 export interface WeeklyReviewResult {
@@ -112,49 +113,51 @@ export async function generateWeeklyReview(
   sections.push(`## Email Activity\n- ~${emailsSent} emails sent`);
 
   // ── Daily notes ──────────────────────────────────────
-  const dailyNoteLines: string[] = [];
-  const current = new Date(startDt);
-  while (current <= endDt) {
-    const dateStr = current.toISOString().split('T')[0];
+  if (isVaultConfigured()) {
+    const dailyNoteLines: string[] = [];
+    const current = new Date(startDt);
+    while (current <= endDt) {
+      const dateStr = current.toISOString().split('T')[0];
+      try {
+        const note = await readFile(`Daily/${dateStr}.md`);
+        if (note) {
+          dailyNoteLines.push(`- [[Daily/${dateStr}]]`);
+        }
+      } catch {
+        // Skip missing days
+      }
+      current.setDate(current.getDate() + 1);
+    }
+
+    if (dailyNoteLines.length > 0) {
+      sections.push('## Daily Notes\n' + dailyNoteLines.join('\n'));
+    }
+
+    // ── Goals ────────────────────────────────────────────
     try {
-      const note = await readFile(`Daily/${dateStr}.md`);
-      if (note) {
-        dailyNoteLines.push(`- [[Daily/${dateStr}]]`);
+      const goalsFile = await readFile('Areas/Personal/goals.md');
+      if (goalsFile) {
+        const goals = parseGoals(goalsFile.content);
+        const summary = formatGoalsSummary(goals)
+          .replace(/<\/?b>/g, '**')
+          .replace(/<\/?i>/g, '*');
+        sections.push('## Goal Progress\n' + summary);
       }
     } catch {
-      // Skip missing days
+      // Goals file may not exist
     }
-    current.setDate(current.getDate() + 1);
-  }
 
-  if (dailyNoteLines.length > 0) {
-    sections.push('## Daily Notes\n' + dailyNoteLines.join('\n'));
-  }
-
-  // ── Goals ────────────────────────────────────────────
-  try {
-    const goalsFile = await readFile('Areas/Personal/goals.md');
-    if (goalsFile) {
-      const goals = parseGoals(goalsFile.content);
-      const summary = formatGoalsSummary(goals)
-        .replace(/<\/?b>/g, '**')
-        .replace(/<\/?i>/g, '*');
-      sections.push('## Goal Progress\n' + summary);
+    // ── Active projects ──────────────────────────────────
+    try {
+      const projects = await listProjects();
+      const active = projects.filter(p => p.status === 'active');
+      if (active.length > 0) {
+        sections.push('## Active Projects\n' +
+          active.map(p => `- [[${p.path}|${p.title}]]${p.category ? ` [${p.category}]` : ''}`).join('\n'));
+      }
+    } catch {
+      // Project listing is best-effort
     }
-  } catch {
-    // Goals file may not exist
-  }
-
-  // ── Active projects ──────────────────────────────────
-  try {
-    const projects = await listProjects();
-    const active = projects.filter(p => p.status === 'active');
-    if (active.length > 0) {
-      sections.push('## Active Projects\n' +
-        active.map(p => `- [[${p.path}|${p.title}]]${p.category ? ` [${p.category}]` : ''}`).join('\n'));
-    }
-  } catch {
-    // Project listing is best-effort
   }
 
   // ── Assemble report ──────────────────────────────────
@@ -173,8 +176,12 @@ ${sections.join('\n\n')}
 *Generated at ${new Date().toLocaleTimeString('en-KE')} EAT*
 `;
 
-  await writeFile(reportPath, report, `lifeos: weekly review ${end}`);
-  console.log(`[weekly] Report written to ${reportPath}`);
+  if (isVaultConfigured()) {
+    await writeFile(reportPath, report, `lifeos: weekly review ${end}`);
+    console.log(`[weekly] Report written to ${reportPath}`);
+  } else {
+    console.log(`[weekly] Vault not configured — skipping report write`);
+  }
 
   // Send summary to Telegram
   const chatId = process.env.TELEGRAM_CHAT_ID;

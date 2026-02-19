@@ -18,7 +18,7 @@ import express from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 import 'dotenv/config';
 
-import { writeFile } from '@lifeos/shared';
+import { writeFile, isVaultConfigured } from '@lifeos/shared';
 import type { ResearchRequest, ResearchReport } from '@lifeos/shared';
 
 const app = express();
@@ -55,8 +55,12 @@ app.post('/research', async (req, res) => {
     const date = new Date().toISOString().split('T')[0];
     const reportPath = `Files/Research/${date}-${request.type}-${slug}.md`;
 
-    await writeFile(reportPath, formatReport(report), `Research: ${request.query}`);
-    console.log(`[research] Report saved to ${reportPath}`);
+    if (isVaultConfigured()) {
+      await writeFile(reportPath, formatReport(report), `Research: ${request.query}`);
+      console.log(`[research] Report saved to ${reportPath}`);
+    } else {
+      console.log(`[research] Vault not configured — skipping report write`);
+    }
 
     res.json({
       status: 'ok',

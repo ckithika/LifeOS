@@ -2,17 +2,19 @@
  * Expense logging service — writes to vault markdown and Google Sheets
  */
 
-import { readFile, writeFile, getGoogleClients, getAccounts } from '@lifeos/shared';
+import { readFile, writeFile, getGoogleClients, getAccounts, isVaultConfigured } from '@lifeos/shared';
 import type { Expense } from '@lifeos/shared';
 
 /**
  * Log an expense to both vault markdown and Google Sheets.
+ * Vault logging is skipped when vault is not configured.
  */
 export async function logExpense(expense: Expense): Promise<void> {
-  await Promise.all([
-    logToVault(expense),
-    logToSheets(expense),
-  ]);
+  const tasks: Promise<void>[] = [logToSheets(expense)];
+  if (isVaultConfigured()) {
+    tasks.push(logToVault(expense));
+  }
+  await Promise.all(tasks);
 }
 
 async function logToVault(expense: Expense): Promise<void> {
