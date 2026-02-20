@@ -8,14 +8,14 @@
  * - Person/company background
  * - Technology evaluation
  *
- * Uses Claude with web_search tool for real-time research.
+ * Uses Gemini with Google Search grounding for real-time research.
  * Results saved to vault as structured Markdown reports.
  *
  * Trigger: POST /research (called by MCP server or manually)
  */
 
 import express from 'express';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI } from '@google/genai';
 import 'dotenv/config';
 
 import { writeFile, isVaultConfigured, formatDate } from '@lifeos/shared';
@@ -24,7 +24,11 @@ import type { ResearchRequest, ResearchReport } from '@lifeos/shared';
 const app = express();
 app.use(express.json());
 
-const anthropic = new Anthropic();
+function getClient(): GoogleGenAI {
+  const apiKey = process.env.GOOGLE_AI_API_KEY;
+  if (!apiKey) throw new Error('GOOGLE_AI_API_KEY is not set');
+  return new GoogleGenAI({ apiKey });
+}
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', agent: 'lifeos-agent-research' });
@@ -81,7 +85,7 @@ app.post('/research', async (req, res) => {
 
 async function conductResearch(request: ResearchRequest): Promise<ResearchReport> {
   const systemPrompts: Record<string, string> = {
-    business_viability: `You are a business analyst conducting a viability assessment. Research the given business idea thoroughly using web search. Structure your report with these sections:
+    business_viability: `You are a business analyst conducting a viability assessment. Research the given business idea thoroughly. Structure your report with these sections:
 1. Executive Summary (2-3 sentences)
 2. Market Size (TAM/SAM/SOM with data sources)
 3. Competitive Landscape (key players, market share, positioning)
@@ -96,7 +100,7 @@ async function conductResearch(request: ResearchRequest): Promise<ResearchReport
 
 Use real data and cite sources. Be honest about unknowns.`,
 
-    market_research: `You are a market research analyst. Research the given market/industry thoroughly using web search. Structure your report with:
+    market_research: `You are a market research analyst. Research the given market/industry thoroughly. Structure your report with:
 1. Market Overview (size, growth rate, key trends)
 2. Market Segmentation (by geography, customer type, product type)
 3. Key Players (market share, strengths, weaknesses)
@@ -107,7 +111,7 @@ Use real data and cite sources. Be honest about unknowns.`,
 
 Use real data and cite sources.`,
 
-    competitive_analysis: `You are a competitive intelligence analyst. Research the competitive landscape thoroughly using web search. Structure your report with:
+    competitive_analysis: `You are a competitive intelligence analyst. Research the competitive landscape thoroughly. Structure your report with:
 1. Overview (market context, why this analysis matters)
 2. Competitor Profiles (for each competitor: overview, products, strengths, weaknesses, market position, recent moves)
 3. Competitive Matrix (feature comparison table)
@@ -118,7 +122,7 @@ Use real data and cite sources.`,
 
 Use real data and cite sources.`,
 
-    person_company: `You are a research analyst preparing a background brief. Research the given person or company thoroughly using web search. Structure your report with:
+    person_company: `You are a research analyst preparing a background brief. Research the given person or company thoroughly. Structure your report with:
 1. Overview (who they are, what they do)
 2. Background (history, founding, key milestones)
 3. Current Focus (recent activities, projects, priorities)
@@ -130,7 +134,7 @@ Use real data and cite sources.`,
 
 Use real data and cite sources.`,
 
-    technology: `You are a technology analyst evaluating a tool, framework, or technology. Research it thoroughly using web search. Structure your report with:
+    technology: `You are a technology analyst evaluating a tool, framework, or technology. Research it thoroughly. Structure your report with:
 1. Overview (what it is, what problem it solves)
 2. Technical Architecture (how it works, key components)
 3. Ecosystem (community, plugins, integrations)
@@ -143,31 +147,38 @@ Use real data and cite sources.`,
   };
 
   const depthConfig = {
-    quick: { maxTokens: 2000, instruction: 'Keep it concise. Use 3-5 web searches. Focus on key facts only.' },
-    standard: { maxTokens: 4000, instruction: 'Be thorough. Use 10-15 web searches. Include data points and sources.' },
-    deep: { maxTokens: 8000, instruction: 'Be comprehensive. Use 15-25 web searches. Include detailed analysis, data, and multiple perspectives.' },
+    quick: { maxTokens: 2000, instruction: 'Keep it concise. Focus on key facts only.' },
+    standard: { maxTokens: 4000, instruction: 'Be thorough. Include data points and sources.' },
+    deep: { maxTokens: 8000, instruction: 'Be comprehensive. Include detailed analysis, data, and multiple perspectives.' },
   };
 
   const depth = depthConfig[request.depth];
   const systemPrompt = systemPrompts[request.type] ?? systemPrompts.market_research;
+  const model = process.env.RESEARCH_MODEL || 'gemini-2.5-pro';
 
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: depth.maxTokens,
-    system: `${systemPrompt}\n\n${depth.instruction}${request.context ? `\n\nAdditional context: ${request.context}` : ''}`,
-    tools: [{
-      type: 'web_search_20250305',
-      name: 'web_search',
-    } as any],
-    messages: [{
-      role: 'user',
-      content: `Research: ${request.query}`,
-    }],
+  const ai = getClient();
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: `Research: ${request.query}`,
+    config: {
+      maxOutputTokens: depth.maxTokens,
+      systemInstruction: `${systemPrompt}\n\n${depth.instruction}${request.context ? `\n\nAdditional context: ${request.context}` : ''}`,
+      tools: [{ googleSearch: {} }],
+    },
   });
 
-  // Extract the text content from the response
-  const textBlocks = response.content.filter((b) => b.type === 'text');
-  const fullText = textBlocks.map((b) => 'text' in b ? b.text : '').join('\n\n');
+  const fullText = response.text ?? '';
+
+  // Extract grounding sources from metadata
+  const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+  const groundingSources = groundingChunks
+    .filter((c: any) => c.web?.uri)
+    .map((c: any) => c.web.uri as string);
+
+  // Also extract any URLs from the text itself
+  const textUrls = extractUrls(fullText);
+  const allSources = [...new Set([...groundingSources, ...textUrls])];
 
   // Parse sections from the markdown
   const sections = parseSections(fullText);
@@ -181,7 +192,7 @@ Use real data and cite sources.`,
     date: new Date().toISOString(),
     summary: sections[0]?.content?.slice(0, 500) ?? '',
     sections,
-    sources: extractUrls(fullText),
+    sources: allSources,
     verdict: verdictMatch?.[1]?.trim(),
   };
 }
