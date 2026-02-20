@@ -182,13 +182,12 @@ async function generateBriefing(date: string): Promise<BriefingSections> {
 
   for (const [alias, clients] of allClients) {
     try {
-      const response = await clients.gmail.users.messages.list({
+      const response = await clients.gmail.users.labels.get({
         userId: 'me',
-        q: 'is:unread',
-        maxResults: 1,
+        id: 'INBOX',
       });
 
-      const count = response.data.resultSizeEstimate ?? 0;
+      const count = response.data.messagesUnread ?? 0;
       if (count > 0) {
         emailCounts.push(`- **${alias}**: ${count} unread`);
       }

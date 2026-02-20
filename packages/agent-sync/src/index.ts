@@ -130,14 +130,13 @@ async function fullSync(): Promise<SyncResults> {
 
     // ── Gmail: Check for unread/important emails ──────────
     try {
-      const response = await clients.gmail.users.messages.list({
+      const response = await clients.gmail.users.labels.get({
         userId: 'me',
-        q: 'is:unread newer_than:1d',
-        maxResults: 20,
+        id: 'INBOX',
       });
 
-      accountResults.emails = response.data.resultSizeEstimate ?? 0;
-      console.log(`[sync] ${alias}: ${accountResults.emails} unread emails (last 24h)`);
+      accountResults.emails = response.data.messagesUnread ?? 0;
+      console.log(`[sync] ${alias}: ${accountResults.emails} unread emails`);
     } catch (error: any) {
       accountResults.errors.push(`Gmail: ${error.message}`);
     }
