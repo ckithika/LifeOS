@@ -1,33 +1,36 @@
 /**
- * Meeting reminder service
+ * Meeting reminder service — one notification per meeting
  *
- * Checks upcoming calendar events and sends Telegram alerts
- * for meetings starting in the next 15 minutes.
- * Uses an in-memory cache to avoid duplicate notifications
- * (resets on cold start — acceptable for Cloud Run).
+ * Checks upcoming calendar events (next 15 min) and sends a single
+ * consolidated Telegram alert with time, attendees, meet link, and vault context.
+ * Replaces the old separate reminder + meeting-prep dual notification.
  */
 
-import { getAllAccountClients } from '@lifeos/shared';
-import { sendTelegramMessage } from '@lifeos/shared';
+import {
+  getAllAccountClients,
+  findContact,
+  searchVault,
+  sendTelegramMessage,
+  isVaultConfigured,
+  formatTime,
+} from '@lifeos/shared';
 import type { ReminderCheck, UpcomingEvent } from '../types.js';
-import { prepUpcomingMeetings } from './meeting-prep.js';
 
 const REMINDER_WINDOW_MINUTES = 15;
+
+/** Skip events starting in < 2 min to reduce cold-start re-notification risk */
+const MIN_MINUTES = 2;
 
 /** Cache of already-notified events: "eventId|startTime" → timestamp sent */
 const notifiedCache = new Map<string, number>();
 
-/** Evict entries older than 30 minutes to prevent unbounded growth. */
 function evictStaleEntries(): void {
-  const cutoff = Date.now() - 30 * 60 * 1000;
+  const cutoff = Date.now() - 60 * 60 * 1000; // 1 hour
   for (const [key, sentAt] of notifiedCache) {
     if (sentAt < cutoff) notifiedCache.delete(key);
   }
 }
 
-/**
- * Check upcoming events and send reminders for those starting soon.
- */
 export async function checkAndNotify(): Promise<ReminderCheck> {
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (!chatId) return { events: [], notified: 0 };
@@ -38,26 +41,23 @@ export async function checkAndNotify(): Promise<ReminderCheck> {
   let notified = 0;
 
   for (const event of upcoming) {
+    if (event.minutesUntil < MIN_MINUTES) continue;
+
     const cacheKey = `${event.id}|${event.start}`;
     if (notifiedCache.has(cacheKey)) continue;
 
-    const text = formatReminder(event);
-    const sent = await sendTelegramMessage(chatId, text, { parse_mode: 'HTML' });
+    const text = await buildNotification(event);
+    const sent = await sendTelegramMessage(chatId, text.slice(0, 4000), { parse_mode: 'HTML' });
     if (sent) {
       notifiedCache.set(cacheKey, Date.now());
       notified++;
     }
   }
 
-  // Also check for upcoming meetings that need prep (30 min window)
-  try {
-    await prepUpcomingMeetings();
-  } catch (error: any) {
-    console.warn('[reminders] Meeting prep error:', error.message);
-  }
-
   return { events: upcoming, notified };
 }
+
+// ─── Fetch upcoming events with full details ────────────
 
 async function getUpcomingEvents(): Promise<UpcomingEvent[]> {
   const events: UpcomingEvent[] = [];
@@ -83,10 +83,23 @@ async function getUpcomingEvents(): Promise<UpcomingEvent[]> {
 
       for (const event of response.data.items ?? []) {
         const start = event.start?.dateTime;
-        if (!start) continue; // Skip all-day events
+        if (!start) continue;
 
         const startTime = new Date(start);
         const minutesUntil = Math.round((startTime.getTime() - now.getTime()) / 60000);
+
+        // Extract Google Meet URL
+        const meetUrl = event.hangoutLink
+          || extractMeetUrl(event.location)
+          || undefined;
+
+        // Extract attendees (exclude self)
+        const attendees = (event.attendees ?? [])
+          .filter((a: any) => !a.self)
+          .map((a: any) => ({
+            name: a.displayName || a.email?.split('@')[0] || 'Unknown',
+            email: a.email || '',
+          }));
 
         events.push({
           id: event.id ?? `${alias}-${start}`,
@@ -94,6 +107,10 @@ async function getUpcomingEvents(): Promise<UpcomingEvent[]> {
           start,
           minutesUntil,
           account: alias,
+          location: event.location ?? undefined,
+          meetUrl,
+          htmlLink: event.htmlLink ?? undefined,
+          attendees,
         });
       }
     } catch (error: any) {
@@ -104,14 +121,64 @@ async function getUpcomingEvents(): Promise<UpcomingEvent[]> {
   return events;
 }
 
-function formatReminder(event: UpcomingEvent): string {
-  const time = new Date(event.start).toLocaleTimeString('en-KE', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function extractMeetUrl(location?: string): string | undefined {
+  if (!location) return undefined;
+  const match = location.match(/https:\/\/meet\.google\.com\/[a-z\-]+/i);
+  return match?.[0];
+}
 
-  if (event.minutesUntil <= 1) {
-    return `🔔 <b>Starting now:</b> ${event.summary} (${time})`;
+// ─── Build consolidated notification ────────────────────
+
+async function buildNotification(event: UpcomingEvent): Promise<string> {
+  const time = formatTime(new Date(event.start));
+
+  const sections: string[] = [];
+
+  // Header
+  sections.push(`<b>${event.summary}</b> — ${time} (in ${event.minutesUntil} min)`);
+
+  // Location / Meet link
+  if (event.meetUrl) {
+    sections.push(`<a href="${event.meetUrl}">Join Google Meet</a>`);
+  } else if (event.location) {
+    sections.push(event.location);
   }
-  return `⏰ <b>In ${event.minutesUntil} min:</b> ${event.summary} (${time})`;
+
+  // Attendees with contact lookup
+  if (event.attendees.length > 0) {
+    const lines: string[] = [];
+    for (const att of event.attendees.slice(0, 5)) {
+      let line = `  - <b>${att.name}</b> (${att.email})`;
+      try {
+        const contacts = await findContact(att.name, 1);
+        if (contacts.length > 0 && contacts[0].organization) {
+          line += ` — ${contacts[0].organization}`;
+        }
+      } catch {
+        // best-effort
+      }
+      lines.push(line);
+    }
+    if (event.attendees.length > 5) {
+      lines.push(`  - <i>+${event.attendees.length - 5} more</i>`);
+    }
+    sections.push(`<b>Attendees:</b>\n${lines.join('\n')}`);
+  }
+
+  // Vault context
+  if (isVaultConfigured()) {
+    try {
+      const results = await searchVault(event.summary);
+      if (results.length > 0) {
+        sections.push(
+          '<b>Related notes:</b>\n' +
+          results.slice(0, 3).map(r => `  - ${r.path}`).join('\n'),
+        );
+      }
+    } catch {
+      // best-effort
+    }
+  }
+
+  return sections.join('\n\n');
 }

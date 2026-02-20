@@ -71,11 +71,8 @@ If there are no action items, write "None" under Action Items.`,
     if (isVaultConfigured()) {
       const now = new Date();
       const date = now.toISOString().split('T')[0];
-      const time = now.toLocaleTimeString('en-KE', {
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'Africa/Nairobi',
-      }).replace(':', '');
+      const { formatTime } = await import('@lifeos/shared');
+      const time = formatTime(now).replace(':', '').replace(' ', '');
 
       const vaultPath = `Files/voice-notes/${date}-${time}.md`;
       const noteContent = `---

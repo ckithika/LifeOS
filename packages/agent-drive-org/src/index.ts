@@ -23,6 +23,8 @@ import {
   appendToFile,
   VAULT_PATHS,
   isVaultConfigured,
+  sendTelegramMessage,
+  formatTime,
 } from '@lifeos/shared';
 
 const app = express();
@@ -41,9 +43,25 @@ app.post('/organize', async (req, res) => {
 
   try {
     const results = await dailyOrganize();
+
+    // Send completion summary to Telegram
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+    if (chatId && results.length > 0) {
+      const moved = results.reduce((sum, r) => sum + r.filesMoved, 0);
+      const scanned = results.reduce((sum, r) => sum + r.filesScanned, 0);
+      if (moved > 0) {
+        await sendTelegramMessage(chatId,
+          `Drive organized ${formatTime(new Date())}: ${moved} files moved (${scanned} scanned)`);
+      }
+    }
+
     res.json({ status: 'ok', results });
   } catch (error: any) {
     console.error('[drive-org] Failed:', error);
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+    if (chatId) {
+      await sendTelegramMessage(chatId, `Drive organization failed: ${error.message}`);
+    }
     res.status(500).json({ error: error.message });
   }
 });

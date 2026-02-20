@@ -2,10 +2,13 @@
  * /expense command — manual expense entry
  *
  * Usage: /expense 500 lunch at Java House
+ * Button flow: 2-step — amount → description
  */
 
 import type { Context } from 'grammy';
+import { InlineKeyboard } from 'grammy';
 import { logExpense } from '../services/expenses.js';
+import { setSession, clearSession } from '../state.js';
 import type { Expense } from '@lifeos/shared';
 
 export async function expenseCommand(ctx: Context): Promise<void> {
@@ -19,7 +22,6 @@ export async function expenseCommand(ctx: Context): Promise<void> {
     return;
   }
 
-  // Parse: first token is amount, rest is description
   const match = args.match(/^(\d+(?:\.\d+)?)\s*(.*)/);
   if (!match) {
     await ctx.reply('Usage: <code>/expense 500 lunch</code>\n\nFirst argument must be a number.', { parse_mode: 'HTML' });
@@ -29,7 +31,40 @@ export async function expenseCommand(ctx: Context): Promise<void> {
   const amount = parseFloat(match[1]);
   const description = match[2].trim() || 'Uncategorized';
 
-  // Simple category detection from description
+  await saveExpense(ctx, amount, description);
+}
+
+/** Button-flow step 1: validate amount, advance to description */
+export async function handleExpenseAmountInput(ctx: Context, text: string): Promise<void> {
+  const amount = parseFloat(text.trim());
+  const userId = ctx.from?.id;
+  if (!userId) return;
+
+  if (isNaN(amount) || amount <= 0) {
+    await ctx.reply('Please enter a valid amount (number > 0):', {
+      reply_markup: new InlineKeyboard().text('Cancel', 'nav:cancel'),
+    });
+    return;
+  }
+
+  setSession(userId, 'expense_desc', { amount });
+  await ctx.reply('What was it for?', {
+    reply_markup: new InlineKeyboard().text('Cancel', 'nav:cancel'),
+  });
+}
+
+/** Button-flow step 2: process expense with amount from session data */
+export async function handleExpenseDescInput(ctx: Context, text: string, data: Record<string, any>): Promise<void> {
+  const userId = ctx.from?.id;
+  if (userId) clearSession(userId);
+
+  const amount = data.amount as number;
+  const description = text.trim() || 'Uncategorized';
+
+  await saveExpense(ctx, amount, description, true);
+}
+
+async function saveExpense(ctx: Context, amount: number, description: string, showNav = false): Promise<void> {
   const category = detectCategory(description);
   const currency = process.env.DEFAULT_CURRENCY || 'KES';
 
@@ -43,9 +78,16 @@ export async function expenseCommand(ctx: Context): Promise<void> {
 
   try {
     await logExpense(expense);
+
+    const opts: any = { parse_mode: 'HTML' };
+    if (showNav) {
+      opts.reply_markup = new InlineKeyboard()
+        .text('← Track', 'nav:track')
+        .text('← Menu', 'nav:main');
+    }
     await ctx.reply(
       `Logged: <b>${currency} ${amount}</b> — ${description} [${category}]`,
-      { parse_mode: 'HTML' },
+      opts,
     );
   } catch (error: any) {
     console.error('[expense] Error:', error.message);

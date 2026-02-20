@@ -11,11 +11,15 @@
 import express from 'express';
 import 'dotenv/config';
 import { webhookCallback } from 'grammy';
+import { loadFromVault } from '@lifeos/channel-shared';
 import { createBot } from './bot.js';
 import { checkAndNotify } from './services/reminders.js';
 
 const app = express();
 app.use(express.json());
+
+// Load conversation memory from vault on cold start
+loadFromVault().catch(err => console.warn('[startup] Memory load:', err.message));
 
 // Create bot instance
 const bot = createBot();

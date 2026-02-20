@@ -4,11 +4,11 @@
 
 import type { Context } from 'grammy';
 import { InlineKeyboard } from 'grammy';
-import { getAllAccountClients } from '@lifeos/shared';
+import { getAllAccountClients, formatTime, getUtcOffset } from '@lifeos/shared';
 import type { CalendarEvent } from '@lifeos/shared';
 
 export async function scheduleCommand(ctx: Context): Promise<void> {
-  await ctx.reply('⏳ Fetching schedule...');
+  await ctx.reply('Fetching schedule...');
 
   const today = new Date().toISOString().split('T')[0];
   const events: CalendarEvent[] = [];
@@ -17,7 +17,7 @@ export async function scheduleCommand(ctx: Context): Promise<void> {
   try {
     allClients = getAllAccountClients();
   } catch (error: any) {
-    await ctx.reply(`❌ Could not load accounts: ${error.message}`);
+    await ctx.reply(`Could not load accounts: ${error.message}`);
     return;
   }
 
@@ -25,8 +25,8 @@ export async function scheduleCommand(ctx: Context): Promise<void> {
     try {
       const response = await clients.calendar.events.list({
         calendarId: 'primary',
-        timeMin: `${today}T00:00:00+03:00`,
-        timeMax: `${today}T23:59:59+03:00`,
+        timeMin: `${today}T00:00:00${getUtcOffset()}`,
+        timeMax: `${today}T23:59:59${getUtcOffset()}`,
         singleEvents: true,
         orderBy: 'startTime',
       });
@@ -50,8 +50,10 @@ export async function scheduleCommand(ctx: Context): Promise<void> {
   }
 
   if (events.length === 0) {
-    await ctx.reply('📅 No events scheduled for today!', {
-      reply_markup: new InlineKeyboard().text('🔄 Refresh', 'menu:schedule'),
+    await ctx.reply('No events scheduled for today!', {
+      reply_markup: new InlineKeyboard()
+        .text('🔄 Refresh', 'ref:schedule')
+        .text('← Menu', 'nav:main'),
     });
     return;
   }
@@ -61,9 +63,9 @@ export async function scheduleCommand(ctx: Context): Promise<void> {
   const lines = events.map((e, i) => {
     const start = new Date(e.start);
     const time = e.start.includes('T')
-      ? start.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })
-      : '📌 All day';
-    const location = e.location ? `\n   📍 ${e.location}` : '';
+      ? formatTime(start)
+      : 'All day';
+    const location = e.location ? `\n   ${e.location}` : '';
     return `${i + 1}. ${time} — <b>${e.summary}</b> <i>[${e.account}]</i>${location}`;
   });
 
@@ -71,23 +73,21 @@ export async function scheduleCommand(ctx: Context): Promise<void> {
   for (const [i, event] of events.entries()) {
     const meetUrl = extractMeetUrl(event.location);
     if (meetUrl) {
-      keyboard.url(`📹 ${i + 1} Join`, meetUrl);
+      keyboard.url(`Join ${i + 1}`, meetUrl);
     } else if (event.htmlLink) {
-      keyboard.url(`🔗 ${i + 1} View`, event.htmlLink);
+      keyboard.url(`View ${i + 1}`, event.htmlLink);
     }
-    // Two buttons per row
     if ((i + 1) % 2 === 0) keyboard.row();
   }
-  keyboard.row().text('🔄 Refresh', 'menu:schedule');
+  keyboard.row().text('🔄 Refresh', 'ref:schedule').text('← Menu', 'nav:main');
 
-  const header = `<b>📅 Today's Schedule (${events.length} events)</b>\n\n`;
+  const header = `<b>Today's Schedule (${events.length} events)</b>\n\n`;
   await ctx.reply(header + lines.join('\n\n'), {
     parse_mode: 'HTML',
     reply_markup: keyboard,
   });
 }
 
-/** Extract Google Meet URL from event location string */
 function extractMeetUrl(location?: string): string | undefined {
   if (!location) return undefined;
   const match = location.match(/https:\/\/meet\.google\.com\/[a-z\-]+/i);

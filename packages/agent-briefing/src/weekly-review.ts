@@ -15,6 +15,8 @@ import {
   parseGoals,
   formatGoalsSummary,
   isVaultConfigured,
+  formatTime,
+  getUtcOffset,
 } from '@lifeos/shared';
 
 export interface WeeklyReviewResult {
@@ -28,7 +30,8 @@ export async function generateWeeklyReview(
   endDate?: string,
 ): Promise<WeeklyReviewResult> {
   const end = endDate || new Date().toISOString().split('T')[0];
-  const endDt = new Date(end + 'T23:59:59+03:00');
+  const offset = getUtcOffset();
+  const endDt = new Date(end + 'T23:59:59' + offset);
   const startDt = new Date(endDt.getTime() - 7 * 24 * 60 * 60 * 1000);
   const start = startDt.toISOString().split('T')[0];
 
@@ -43,8 +46,8 @@ export async function generateWeeklyReview(
     try {
       const response = await clients.calendar.events.list({
         calendarId: 'primary',
-        timeMin: `${start}T00:00:00+03:00`,
-        timeMax: `${end}T23:59:59+03:00`,
+        timeMin: `${start}T00:00:00${offset}`,
+        timeMax: `${end}T23:59:59${offset}`,
         singleEvents: true,
         orderBy: 'startTime',
         maxResults: 100,
@@ -173,7 +176,7 @@ generated: ${new Date().toISOString()}
 ${sections.join('\n\n')}
 
 ---
-*Generated at ${new Date().toLocaleTimeString('en-KE')} EAT*
+*Generated at ${formatTime(new Date())}*
 `;
 
   if (isVaultConfigured()) {

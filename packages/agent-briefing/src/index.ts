@@ -22,6 +22,9 @@ import {
   listProjects,
   sendTelegramMessage,
   isVaultConfigured,
+  formatTime,
+  formatDate,
+  getUtcOffset,
 } from '@lifeos/shared';
 import type { CalendarEvent, TaskItem } from '@lifeos/shared';
 import { triageEmails } from './triage.js';
@@ -75,8 +78,9 @@ async function generateBriefing(date: string): Promise<BriefingSections> {
 
   // ── Calendar: Today's events ───────────────────────────
   const events: CalendarEvent[] = [];
-  const dayStart = `${date}T00:00:00+03:00`;
-  const dayEnd = `${date}T23:59:59+03:00`;
+  const offset = getUtcOffset();
+  const dayStart = `${date}T00:00:00${offset}`;
+  const dayEnd = `${date}T23:59:59${offset}`;
 
   for (const [alias, clients] of allClients) {
     try {
@@ -117,7 +121,7 @@ async function generateBriefing(date: string): Promise<BriefingSections> {
     ? events.map((e) => {
         const start = new Date(e.start);
         const time = e.start.includes('T')
-          ? start.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })
+          ? formatTime(start)
           : 'All day';
         const attendees = e.attendees?.length
           ? ` — ${e.attendees.map((a) => a.displayName ?? a.email).join(', ')}`
@@ -167,7 +171,7 @@ async function generateBriefing(date: string): Promise<BriefingSections> {
         const dueDate = t.due ? new Date(t.due) : null;
         const isOverdue = dueDate && dueDate < today;
         const dueStr = dueDate
-          ? ` (due: ${dueDate.toLocaleDateString('en-KE')}${isOverdue ? ' ⚠️ OVERDUE' : ''})`
+          ? ` (due: ${formatDate(dueDate)}${isOverdue ? ' ⚠️ OVERDUE' : ''})`
           : '';
         return `- ⬜ ${t.title}${dueStr}`;
       }).join('\n')
@@ -314,7 +318,7 @@ ${sections.followUps}
 ${sections.projects}
 
 ---
-*Generated at ${new Date().toLocaleTimeString('en-KE')} EAT*
+*Generated at ${formatTime(new Date())}*
 `;
 
   if (isVaultConfigured()) {

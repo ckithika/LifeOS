@@ -5,7 +5,8 @@
  */
 
 import type { Context } from 'grammy';
-import { getDailyNote, writeFile } from '@lifeos/shared';
+import { InlineKeyboard } from 'grammy';
+import { getDailyNote, writeFile, formatTime } from '@lifeos/shared';
 
 export async function noteCommand(ctx: Context): Promise<void> {
   const text = ctx.message?.text?.replace(/^\/note\s*/, '').trim();
@@ -18,17 +19,20 @@ export async function noteCommand(ctx: Context): Promise<void> {
     return;
   }
 
+  await saveNote(ctx, text);
+}
+
+/** Button-flow handler — called from session interception */
+export async function handleNoteInput(ctx: Context, text: string): Promise<void> {
+  await saveNote(ctx, text, true);
+}
+
+async function saveNote(ctx: Context, text: string, showNav = false): Promise<void> {
   try {
     const note = await getDailyNote();
-    const now = new Date();
-    const time = now.toLocaleTimeString('en-KE', {
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Africa/Nairobi',
-    });
+    const time = formatTime(new Date());
     const entry = `- ${time} — ${text}`;
 
-    // Insert under ## Notes section
     const sectionHeader = '## Notes';
     const sectionIndex = note.content.indexOf(sectionHeader);
     let newContent: string;
@@ -45,7 +49,14 @@ export async function noteCommand(ctx: Context): Promise<void> {
     }
 
     await writeFile(note.path, newContent, `lifeos: quick note ${note.date}`);
-    await ctx.reply(`Noted.`, { parse_mode: 'HTML' });
+
+    const opts: any = { parse_mode: 'HTML' };
+    if (showNav) {
+      opts.reply_markup = new InlineKeyboard()
+        .text('← Vault', 'nav:vault')
+        .text('← Menu', 'nav:main');
+    }
+    await ctx.reply('Noted.', opts);
   } catch (error: any) {
     console.error('[note] Error:', error.message);
     await ctx.reply(`Could not save note: ${error.message}`);

@@ -20,4 +20,8 @@ export interface UpcomingEvent {
   start: string;
   minutesUntil: number;
   account: string;
+  location?: string;
+  meetUrl?: string;
+  htmlLink?: string;
+  attendees: Array<{ name: string; email: string }>;
 }

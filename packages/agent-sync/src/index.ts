@@ -31,6 +31,8 @@ import {
   detectProject,
   loadConfig,
   isVaultConfigured,
+  sendTelegramMessage,
+  formatTime,
 } from '@lifeos/shared';
 
 const app = express();
@@ -62,9 +64,37 @@ app.post('/sync', async (req, res) => {
     // Update sync log
     await updateSyncLog(results);
 
+    // Send completion summary to Telegram
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+    if (chatId) {
+      const totals = Object.values(results.accounts).reduce(
+        (acc, r) => ({
+          emails: acc.emails + r.emails,
+          events: acc.events + r.events,
+          tasks: acc.tasks + r.tasks,
+          files: acc.files + r.files,
+          errors: acc.errors + r.errors.length,
+        }),
+        { emails: 0, events: 0, tasks: 0, files: 0, errors: 0 },
+      );
+      const parts = [
+        totals.emails && `${totals.emails} emails`,
+        totals.events && `${totals.events} events`,
+        totals.tasks && `${totals.tasks} tasks`,
+        totals.files && `${totals.files} files`,
+      ].filter(Boolean);
+      const errPart = totals.errors > 0 ? ` (${totals.errors} errors)` : '';
+      await sendTelegramMessage(chatId,
+        `Sync ${formatTime(new Date())}: ${parts.join(', ') || 'nothing new'}${errPart}`);
+    }
+
     res.json({ status: 'ok', mode, results });
   } catch (error: any) {
     console.error('[sync] Sync failed:', error);
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+    if (chatId) {
+      await sendTelegramMessage(chatId, `Sync failed: ${error.message}`);
+    }
     res.status(500).json({ error: error.message });
   }
 });

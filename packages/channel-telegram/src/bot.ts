@@ -18,6 +18,7 @@ import { goalsCommand } from './commands/goals.js';
 import { weeklyCommand } from './commands/weekly.js';
 import { projectCommand } from './commands/project.js';
 import { expenseCommand } from './commands/expense.js';
+import { statusCommand } from './commands/status.js';
 import { handleMessage } from './handlers/message.js';
 import { handleCallback } from './handlers/callback.js';
 import { handleVoice } from './handlers/voice.js';
@@ -44,6 +45,7 @@ const ALL_COMMANDS: CommandMeta[] = [
   { command: 'project', description: 'Project dashboard', requiresVault: true },
   { command: 'projects', description: 'Active projects', requiresVault: true },
   { command: 'expense', description: 'Log an expense', requiresVault: true },
+  { command: 'status', description: 'System health & status', requiresVault: false },
   { command: 'help', description: 'Help & commands', requiresVault: false },
 ];
 
@@ -94,6 +96,7 @@ export function createBot(): Bot {
   bot.command('tasks', tasksCommand);
   bot.command('schedule', scheduleCommand);
   bot.command('research', researchCommand);
+  bot.command('status', statusCommand);
 
   // Commands — vault-dependent
   bot.command('projects', vaultGuard(projectsCommand));

@@ -1,18 +1,18 @@
 # LifeOS
 
-**Your life, one conversation away.**
+**AI that actually knows your schedule, emails, tasks, and notes.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js 20+](https://img.shields.io/badge/node-20%2B-green.svg)](https://nodejs.org)
 [![Deploy: Cloud Run](https://img.shields.io/badge/deploy-Cloud%20Run-4285F4.svg)](https://cloud.google.com/run)
 
+LifeOS connects your Google Workspace (Gmail, Calendar, Tasks, Drive), Obsidian vault, and Telegram into one AI assistant that can read, search, and act on all of it. Ask about your day, process meetings, research topics, track habits — through conversation or tap-based menus in Telegram.
+
 ## The Problem
 
-Your life runs on a dozen disconnected tools. Meeting notes in Granola, tasks in Google Tasks, emails across multiple Gmail accounts, files scattered across Drive, and project notes in Obsidian. No single tool sees the full picture.
+Your data is spread across Gmail, Google Calendar, Google Tasks, Google Drive, and Obsidian. AI assistants are powerful — but they can't access *your* data. You end up copy-pasting context between tools and AI.
 
-AI assistants are powerful — but they can't access *your* data. They can't check your calendar, search your emails, read your project notes, or draft a follow-up from this morning's meeting. You're the middleware, copy-pasting context between tools and AI.
-
-LifeOS fixes this.
+LifeOS gives AI direct access to all of it.
 
 ## What It Looks Like
 
@@ -238,27 +238,31 @@ See [docs/vault-structure-guide.md](docs/vault-structure-guide.md) for customiza
 
 ## Roadmap
 
+**Recently Shipped**
+- Button-first Telegram UX — inline menus, sub-menus, conversational input flows, persistent Menu button
+- Consolidated meeting reminders — one notification per meeting with attendees, Meet link, and vault context
+- Configurable timezone — all timestamps driven by `TIMEZONE` env var
+- Agent health summaries — sync, drive-org, briefing report completions to Telegram
+- Persistent conversation memory — survives Cloud Run cold starts via vault
+- `/status` command — system health, account info, agent status at a glance
+- Comprehensive `/help` — command descriptions, examples, voice/photo feature hints
+- Human-readable error messages — actionable guidance instead of raw stack traces
+
 **In Progress**
 - Account management CLI (`npm run add-account`) — interactive multi-provider setup
 - Vault reorganization tooling — move projects, validate structure, archive
 
-**Recently Shipped**
-- Gemini AI provider — free-tier Gemini as primary Telegram bot AI with automatic Claude fallback
-- Telegram bot — conversational AI with full tool parity (29 tools), slash commands, meeting reminders
-- Vault restructure — projects under Areas/, folder-per-project migration
-
 **Planned**
 - Vault semantic search — vector embeddings for conceptual search alongside keyword search
 - n8n self-hosted — free webhook relay replacing manual Granola triggers
+- `npx create-lifeos` — one-command setup for new users
 
 **Future**
 - Alternative vault backends — Logseq, Dendron, Foam, Zettlr (all markdown-on-disk, near-zero effort via same GitHub API)
 - Notion / SiYuan support — API-based vault backends for non-markdown-native apps
 - Microsoft 365 / Outlook support
-- GPT as additional fallback provider
+- Slack integration
 - Event-driven triggers (Gmail push, calendar webhooks)
-- `npx create-lifeos` — one-command setup for new users
-- Slack and additional meeting source integrations
 
 See [TODO.md](TODO.md) for the full roadmap.
 

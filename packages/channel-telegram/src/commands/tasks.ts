@@ -8,7 +8,7 @@ import { getAllAccountClients } from '@lifeos/shared';
 import type { TaskItem } from '@lifeos/shared';
 
 export async function tasksCommand(ctx: Context): Promise<void> {
-  await ctx.reply('⏳ Fetching tasks...');
+  await ctx.reply('Fetching tasks...');
 
   const tasks: (TaskItem & { account: string })[] = [];
 
@@ -16,7 +16,7 @@ export async function tasksCommand(ctx: Context): Promise<void> {
   try {
     allClients = getAllAccountClients();
   } catch (error: any) {
-    await ctx.reply(`❌ Could not load accounts: ${error.message}`);
+    await ctx.reply(`Could not load accounts: ${error.message}`);
     return;
   }
 
@@ -45,13 +45,14 @@ export async function tasksCommand(ctx: Context): Promise<void> {
   }
 
   if (tasks.length === 0) {
-    await ctx.reply('✅ No active tasks!', {
-      reply_markup: new InlineKeyboard().text('🔄 Refresh', 'menu:tasks'),
+    await ctx.reply('No active tasks!', {
+      reply_markup: new InlineKeyboard()
+        .text('🔄 Refresh', 'ref:tasks')
+        .text('← Menu', 'nav:main'),
     });
     return;
   }
 
-  // Sort by due date
   tasks.sort((a, b) => {
     if (!a.due && !b.due) return 0;
     if (!a.due) return 1;
@@ -69,16 +70,16 @@ export async function tasksCommand(ctx: Context): Promise<void> {
   const keyboard = new InlineKeyboard();
   for (let i = 0; i < display.length; i += 2) {
     const t1 = display[i];
-    keyboard.text(`✅ ${i + 1}`, `done:${t1.id}:${t1.account}`);
+    keyboard.text(`Done ${i + 1}`, `done:${t1.id}:${t1.account}`);
     if (i + 1 < display.length) {
       const t2 = display[i + 1];
-      keyboard.text(`✅ ${i + 2}`, `done:${t2.id}:${t2.account}`);
+      keyboard.text(`Done ${i + 2}`, `done:${t2.id}:${t2.account}`);
     }
     keyboard.row();
   }
-  keyboard.text('🔄 Refresh', 'menu:tasks');
+  keyboard.text('🔄 Refresh', 'ref:tasks').text('← Menu', 'nav:main');
 
-  const header = `<b>✅ Active Tasks (${tasks.length})</b>\n\n`;
+  const header = `<b>Active Tasks (${tasks.length})</b>\n\n`;
   await ctx.reply(header + lines.join('\n'), {
     parse_mode: 'HTML',
     reply_markup: keyboard,

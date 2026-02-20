@@ -28,6 +28,7 @@ export {
 export {
   getConversation,
   saveConversation,
+  loadFromVault,
   toAnthropicHistory,
   toGeminiHistory,
 } from './memory.js';

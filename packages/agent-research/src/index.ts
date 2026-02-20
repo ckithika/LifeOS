@@ -18,7 +18,7 @@ import express from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 import 'dotenv/config';
 
-import { writeFile, isVaultConfigured } from '@lifeos/shared';
+import { writeFile, isVaultConfigured, formatDate } from '@lifeos/shared';
 import type { ResearchRequest, ResearchReport } from '@lifeos/shared';
 
 const app = express();
@@ -238,7 +238,7 @@ sources: ${report.sources.length}
 # ${report.title}
 
 **Type:** ${report.type.replace(/_/g, ' ')}
-**Date:** ${new Date(report.date).toLocaleDateString('en-KE')}
+**Date:** ${formatDate(new Date(report.date))}
 ${report.verdict ? `**Verdict:** ${report.verdict}` : ''}
 
 ---

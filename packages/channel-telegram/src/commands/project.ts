@@ -5,6 +5,7 @@
  */
 
 import type { Context } from 'grammy';
+import { InlineKeyboard } from 'grammy';
 import {
   listProjects,
   readFile,
@@ -124,7 +125,14 @@ export async function projectCommand(ctx: Context): Promise<void> {
     // Project files
     sections.push(`<b>Vault</b>\n  <code>${project.folderPath}</code>`);
 
-    await ctx.reply(truncateForTelegram(sections.join('\n')), { parse_mode: 'HTML' });
+    const keyboard = new InlineKeyboard()
+      .text('← Projects', 'm:projects')
+      .text('← Menu', 'nav:main');
+
+    await ctx.reply(truncateForTelegram(sections.join('\n')), {
+      parse_mode: 'HTML',
+      reply_markup: keyboard,
+    });
   } catch (error: any) {
     console.error('[project] Error:', error.message);
     await ctx.reply(`Could not load project: ${error.message}`);
