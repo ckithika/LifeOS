@@ -24,6 +24,8 @@ import { projectsCommand } from '../commands/projects.js';
 import { goalsCommand } from '../commands/goals.js';
 import { projectCommand } from '../commands/project.js';
 import { weeklyCommand } from '../commands/weekly.js';
+import { statusCommand } from '../commands/status.js';
+import { helpCommand } from '../commands/help.js';
 import { handleGoalSelect } from '../commands/goals.js';
 import { handleExpenseCallback } from './photo.js';
 import { setSession, clearSession } from '../state.js';
@@ -144,6 +146,10 @@ async function handleAction(ctx: Context, action: string): Promise<void> {
       return goalsCommand(ctx);
     case 'weekly':
       return weeklyCommand(ctx);
+    case 'status':
+      return statusCommand(ctx);
+    case 'help':
+      return helpCommand(ctx);
     default:
       await ctx.reply(`Unknown action: ${action}`);
   }

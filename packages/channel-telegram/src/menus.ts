@@ -34,7 +34,9 @@ export function buildMainMenu(): InlineKeyboard {
     kb.text('📂 Vault', 'nav:vault');
   }
 
-  kb.row();
+  kb.row()
+    .text('ℹ️ Status', 'm:status')
+    .text('❓ Help', 'm:help');
 
   return kb;
 }
